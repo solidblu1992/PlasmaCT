@@ -1,3 +1,6 @@
+import rlp
+from rlp.sedes import CountableList, big_endian_int
+
 field_modulus = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 
 # python3 compatibility
@@ -21,7 +24,7 @@ def prime_field_inv(a, n):
 
 # A class for field elements in FQ. Wrap a number in this class,
 # and it becomes a field element.
-class FQ():
+class FQ():    
     def __init__(self, n):
         if isinstance(n, self.__class__):
             self.n = n.n

@@ -68,7 +68,7 @@ class BulletProof:
             
         if(type(gamma) != list):
             gamma = [gamma]
-            
+
         assert(len(v) == len(gamma))
         assert(len(v) == len(power10))
         assert(len(v) == len(offset))
@@ -323,8 +323,7 @@ class BulletProof:
                 Hasset = hash_addr_to_point(proof.asset_addr)
 
             #Pick weight for this proof
-            #weight = getRandom()
-            weight = 1
+            weight = getRandom()
 
             #Reconstruct Challenges
 	    #Hash V[], including array length
@@ -617,15 +616,15 @@ class BulletProof:
 
 #Single Bullet Proofs
 if (False):
-    bits = 32   #bits
-    m = 2       #commitments per proof
+    bits = 64   #bits
+    m = 1       #commitments per proof
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
     #Generate proof(s)
     import time
     t = time.time()
-    bp = BulletProof.Generate([1000000]*m, [12]*m, [0]*m, N=bits, asset_addr=0)
+    bp = BulletProof.Generate([10]*m, [12]*m, [0]*m, N=bits, asset_addr=0)
     t = time.time() - t
     bp.Print_MEW()
     
@@ -639,7 +638,7 @@ if (False):
     print("Verify time: " + str(t / m) + "s")
 
 #Multiple Bullet Proofs
-if (True):
+if (False):
     p = 2   #Number of Proofs
     m = 2   #Commitments per Proof
     bits = 32

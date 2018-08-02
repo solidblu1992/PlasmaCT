@@ -1,12 +1,11 @@
 #from bn128_curve import *
 #from optimized_curve import *
-from optimized_secp256k1 import *
+from optimized_curve import *
 import sha3
 
 #alt_bn_128 curve parameters
 Ncurve = curve_order
 Pcurve = field_modulus
-NullPoint = (FQ(0), FQ(0), FQ(0))
 counters = [0]*32
 
 useShamir = True    #Flag True to use Shamir's Trick to compute (a*A + b*B) effectively
@@ -89,8 +88,12 @@ def point_to_str(p):
 
     if (len(p) == 3):
         p = normalize(p)
-    
-    s = (bytes_to_str(p[0].n) + ",\n" + bytes_to_str(p[1].n))
+
+    if (type(p[0]) == FQ):
+        s = (bytes_to_str(p[0].n) + ",\n" + bytes_to_str(p[1].n))
+    else:
+        s = "[" + bytes_to_str(p[0].coeffs[0]) + ",\n" + bytes_to_str(p[0].coeffs[1]) + "],\n["
+        s += bytes_to_str(p[1].coeffs[0]) + ",\n" + bytes_to_str(p[1].coeffs[1]) + "]"
     return s
 
 def hash_of_int(i):
@@ -249,17 +252,26 @@ if (useWindowed):
     
     G_pre = precompute_points(G)
     H_pre = precompute_points(H)
+    #G2_pre = precompute_points(G2)
     
     def multiply(P, s, wBits=5):
         wPow = (1 << wBits)
         wPowOver2 = wPow // 2
 
-        if (eq(P, G)):
-            P_pre = G_pre
-        elif (eq(P, H)):
-            P_pre = H_pre
+        if (type(P[0]) == FQ):
+            Q = NullPoint
+                    
+            if (eq(P, G)):
+                P_pre = G_pre
+            elif (eq(P, H)):
+                P_pre = H_pre
+            else:
+                P_pre = precompute_points(P, wBits)
         else:
-            P_pre = precompute_points(P, wBits)
+            Q = NullPoint2
+            
+            if (eq(P, G2)):
+                P_pre = G2_pre
         
         #Get NAF digits
         dj = []
@@ -279,7 +291,6 @@ if (useWindowed):
             s = s // 2
             i = i + 1
 
-        Q = NullPoint
         for j in reversed(range(0, i)):
             Q = double(Q)
             if (dj[j] > 0):
@@ -307,7 +318,7 @@ if (useWindowed):
         print("windowed_pre() => " + str(t1) + "s")
         print("% => " + str((t0-t1)*100/t1))
 
-        Gi = hash_to_point(H)
+        Gi = hash_point_to_point(H)
         t2 = time.time()
         for i in range(0, len(r)):
             P = multiply(Gi, r[i])
@@ -320,6 +331,9 @@ else:
 
 #shamir2 and shamir 3 are variations on multiply() using Shamir's Trick - Multiexponentiation
 def find_msb(s):
+    if (s == 0):
+        return 0
+    
     x = (1 << 255)
     while (s & x == 0):
         x = x >> 1
@@ -327,7 +341,7 @@ def find_msb(s):
     return x
 
 if (useShamir):
-    def shamir(P, s):
+    def shamir(P, s):        
         b = len(P)
         assert(b == len(s))
 
@@ -364,6 +378,23 @@ if (useShamir):
             x = x >> 1
 
         return Pout
+
+    def shamir_batch(P, s, batch_size=6):
+        if (batch_size == 0):
+            return shamir(P, s)
+
+        out = NullPoint
+        
+        #Use shamir in batches
+        #Then do batch of remainder
+        for i in range(0, len(s), batch_size):
+            ip = i+batch_size
+            if (ip > len(s)):
+                ip = len(s)
+
+            out = add(out, shamir(P[i:ip], s[i:ip]))
+
+        return out
 
     def Shamir_TimeTrials(N=100, n=2):
         import time
@@ -450,3 +481,74 @@ def sInv(a):
 
     assert(sMul(a, t1) == 1)
     return t1
+
+def vPow(x, N):
+    if (x == 0):
+        return [0]*N
+    elif (x == 1):
+        return [1]*N
+
+    out = [0]*N
+    out[0] = 1
+    for i in range(1, N):
+        out[i] = sMul(out[i-1], x)
+
+    return out
+
+def vSum(a):
+    out = a[0]
+    for i in range(1, len(a)):
+        out = sAdd(out, a[i])
+
+    return out
+
+def vAdd(a, b):
+    assert(len(a) == len(b))
+
+    out = [0]*len(a)
+    for i in range(0, len(a)):
+        out[i] = sAdd(a[i], b[i])
+
+    return out
+
+def vSub(a, b):
+    assert(len(a) == len(b))
+
+    out = [0]*len(a)
+    for i in range(0, len(a)):
+        out[i] = sSub(a[i], b[i])
+
+    return out
+
+def vMul(a, b):
+    assert(len(a) == len(b))
+
+    out = [0]*len(a)
+    for i in range(0, len(a)):
+        out[i] = sMul(a[i], b[i])
+
+    return out
+
+def vScale(a, s):
+    out = [0]*len(a)
+    for i in range(0, len(a)):
+        out[i] = sMul(a[i], s)
+
+    return out
+    
+def vDot(a, b):
+    assert(len(a) == len(b))
+
+    out = 0
+    for i in range(0, len(a)):
+        out = sAdd(out, sMul(a[i], b[i]))
+
+    return out
+
+def vSlice(a, start, stop):
+    out = [0]*(stop-start)
+
+    for i in range(start, stop):
+        out[i-start] = a[i]
+
+    return out
