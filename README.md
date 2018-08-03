@@ -27,17 +27,17 @@ User sends a transaction to the RootChain contract with some amount of ETH, as w
 bf must be unknown to the chain since whoever knows bf would be authorized to spend the new UTXO.  Since the contract does not know bf, it must validate that BF = bf * G1.  If this signature is not provided, then alpha may be known by the user s.t. BF = bf * G1 + alpha * H.  This would illicitly create coins.
 
 ### PublishBlock(bytes32 block_hash)
-The block producer publishes the current block hash to the main chain.  The block format would look something like this:
+The block producer publishes the current block hash to the main chain.  The block format would look something like the following.  Note that all tx's included in the block are aggregated using the same techniques as MimbleWimble.
 
 
 Prameter | Type | Description
 --- | --- | ---
 blk_num | uint | Number of the block
-sig(0) | BLS | Aggregated signature for tx's in block, signing block number = 0
-sig(blk_num) | BLS | Aggregated signature for tx's in block, signing current block number
-sig_offset | uint | Total signature offset for tx's in block.  Used to obscure groupings of inputs and outputs.
-outputs | {uint, BulletProof}[] | All outputs included in the block tx.  uint specifies current block number.  BulletProof contains output commitment
-inputs | {uint, G1Point}[] | All inputs included in the block tx.  uint specifies the block number that created the input.
+sig(0) | BLS | Aggregated signature for the total block tx, signing block number = 0.  Possibly used in future for aggregating historical blocks.
+sig(blk_num) | BLS | Aggregated signature for the total block tx, signing current block number
+sig_offset | uint | Total signature offset for the total block tx.  Used to obscure groupings of inputs and outputs.
+outputs | {uint, BulletProof}[] | All outputs included in the total block tx.  uint specifies current block number.  BulletProof contains output commitment
+inputs | {uint, G1Point}[] | All inputs included in the total block tx.  uint specifies the block number that created the input.
 
 ## Off Chain
 ### Send(inputs : G1Point[], outputs : G1Point[], bp : bulletproof[], signature : bls/schnorr, signature_offset : uint)
