@@ -3,8 +3,6 @@ from bulletproof import *
 from optimized_curve import *
 from BLS import *
 
-import rlp
-from rlp.sedes import CountableList, big_endian_int
 
 def GetRandomTxValues(input_count, output_count, max_value=1000):
     import random
@@ -52,22 +50,12 @@ def GetRandomTxValues(input_count, output_count, max_value=1000):
     
     return (v_in, v_out, bf_in, bf_out, off, rem)
 
-class TxCommitment(rlp.Serializable):
-    fields = [
-        ('x', big_endian_int),
-        ('y', big_endian_int)
-    ]
-
+class TxCommitment():
     def __init__(self, x, y):
         self.x = getRandom()
         self.y = getRandom()
 
-class TxOutput(rlp.Serializable):
-
-    fields = [
-        ('commitment', TxCommitment)
-    ]
-    
+class TxOutput():    
     blknum = 0
     commitment = 0
     bp = None
@@ -98,15 +86,7 @@ class TxOutput(rlp.Serializable):
         else:
             return TxOutput(shamir([G, H], [bf, value]), blknum)
     
-class MimbleTx(rlp.Serializable):
-
-    fields = [
-        ('inputs', CountableList(TxOutput)),
-        ('outputs', CountableList(TxOutput)),
-        ('sig', CountableList(BLS)),
-        ('offset', big_endian_int)
-    ]
-
+class MimbleTx():
     def __init__(self, inputs, outputs, sig, offset=0):
         self.inputs = inputs
         self.outputs = outputs
@@ -241,11 +221,7 @@ class MimbleTx(rlp.Serializable):
         print("\tP: " + hex(CompressPoint(self.sig.P)))
         print("\tS: " + point_to_str(self.sig.S))
 
-class MimbleBlock(rlp.Serializable):
-    fields = [
-        ('transaction_set', CountableList(MimbleTx)),
-    ]
-
+class MimbleBlock():
     def __init__(self, blknum=0):
         self.blknum = blknum
         self.diff_tx = None

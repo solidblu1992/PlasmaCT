@@ -1,5 +1,4 @@
 #from bn128_curve import *
-#from optimized_curve import *
 from optimized_curve import *
 import sha3
 
@@ -10,6 +9,34 @@ counters = [0]*32
 
 useShamir = True    #Flag True to use Shamir's Trick to compute (a*A + b*B) effectively
 useWindowed = True  #Flag True to use windowed EC Multiplication
+
+def sqrt(x):
+    if ((type(x) != FQ) and (type(x) != FQ2)):
+        x = FQ(x)
+
+    if (type(x) == FQ):
+        x0 = x**((Pcurve+1)//4)
+        if (x == x0**2):
+            return x0
+        else:
+            return FQ.zero()
+    else:
+        q = Pcurve
+        a1 = x**((q-3)//4)
+        alpha = a1*a1*x
+        a0 = (alpha**q)*alpha #alpha**(q+1)
+
+        if (a0 == FQ2([Pcurve-1,0])):
+            return FQ2.zero()
+
+        x0 = a1*x
+
+        if (alpha == FQ2([Pcurve-1,0])):
+            return FQ2([0,1])*x0
+        else:
+            b = (alpha + FQ2.one())**((q-1)//2)
+            return b*x0
+        
 
 def bytes_to_int(bytes):
     result = 0
@@ -101,55 +128,207 @@ def hash_of_int(i):
     x = bytes_to_int(hasher.digest())
     return x
 
-def get_point_from_x(x):
-    onCurve = False
-    while(not onCurve):
-        y_squared = x**3 + b
-        y = y_squared**((Pcurve+1)//4)
+def get_xy1(x_1, x_2, x_3):
+    #Check x_1
+    y2 = x_1**3 + b
+    y = sqrt(y2)
 
-        onCurve = (y**2 == y_squared)
+    if (y != FQ.zero()):
+        return (x_1, y, FQ.one())
 
-        if(not(onCurve)):
-            x = x + 1
+    #Check x_2
+    y2 = x_2**3 + b
+    y = sqrt(y2)
 
-    return (FQ(x), FQ(y), FQ(1))
+    if (y != FQ.zero()):
+        return (x_2, y, FQ.one())
+
+    #Check x_3
+    y2 = x_3**3 + b
+    y = sqrt(y2)
+    assert(y != FQ.zero())
+    return (x_2, y, FQ.one())
+
+def get_xy2(x_1, x_2, x_3):
+    #Check x_1
+    y2 = x_1**3 + b2
+    y = sqrt(y2)
+
+    if (y != FQ2.zero()):
+        return (x_1, y, FQ2.one())
+
+    #Check x_2
+    y2 = x_2**3 + b2
+    y = sqrt(y2)
+
+    if (y != FQ2.zero()):
+        return (x_2, y, FQ2.one())
+
+    #Check x_3
+    y2 = x_3**3 + b2
+    y = sqrt(y2)
+    assert(y != FQ2.zero())
+    return (x_3, y, FQ2.one())
+
+def point1_from_t(t):
+    if (type(t) != FQ):
+        t = FQ(t)
+        
+    sqrt3 = sqrt(FQ(-3))
+    F0 = ((sqrt3-1)/2, sqrt(1+b), FQ(1))
+
+    if (t == 0):
+        return F0
+    
+    w = sqrt3*t/(1+b+t**2)
+    x_1 = (sqrt3-1)/2 - t*w
+    x_2 = -x_1 - 1
+    x_3 = 1 + 1 / w**2
+
+
+    return x_1, x_2, x_3
+
+    T = get_xy1(x_1, x_2, x_3)
+
+    return add(F0, T)
+
+def point2_from_t(t):
+    if (type(t) != FQ2):
+        t = FQ2([t, 0])
+
+    sqrt3 = sqrt(FQ2([-3, 0]))
+    F0 = ((sqrt3-FQ2.one())/2, sqrt(FQ2.one()+b2), FQ2.one())
+
+    if (t == FQ2.zero()):
+        return F0
+
+    w = sqrt3*t/(FQ2.one()+b2+t**2)
+
+    x_1 = (sqrt3-FQ2.one())/FQ2([2, 0]) - t*w
+    x_2 = -x_1 - FQ2.one()
+    x_3 = FQ2.one() + FQ2.one() / w**2
+
+    T = get_xy2(x_1, x_2, x_3)
+
+    return add(F0, T)
 
 def hash_of_point(p):
     p = normalize(p)
     hasher = sha3.keccak_256()
-    hasher.update(int_to_bytes32(p[0].n))
-    hasher.update(int_to_bytes32(p[1].n))
+
+    if (type(p[0]) == FQ):
+        hasher.update(int_to_bytes32(p[0].n))
+        hasher.update(int_to_bytes32(p[1].n))
+    else:
+        hasher.update(int_to_bytes32(p[0].coeffs[0]))
+        hasher.update(int_to_bytes32(p[0].coeffs[1]))
+        hasher.update(int_to_bytes32(p[1].coeffs[0]))
+        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        
     x = bytes_to_int(hasher.digest())
     return x
 
-def hash_addr_to_point(addr):
-    hasher = sha3.keccak_256(int_to_bytes20(addr))
+def hash_addr_to_point1(addr):
+    hasher = sha3.keccak_256(int_to_bytes20(addr) + b"G1")
     x = bytes_to_int(hasher.digest())
-    return get_point_from_x(x)
+    return point1_from_t(x)
 
-def hash_str_to_point(s):
-    hasher = sha3.keccak_256(bytes(s, "UTF-8"))
-    x = bytes_to_int(hasher.digest()) % Pcurve
-    
-    return get_point_from_x(x)
+def hash_addr_to_point2(addr):
+    hasher = sha3.keccak_256(int_to_bytes20(addr) + b"G2_0")
+    c_0 = bytes_to_int(hasher.digest())
+    hasher = sha3.keccak_256(int_to_bytes20(addr) + b"G2_1")
+    c_1 = bytes_to_int(hasher.digest())
+    t = FQ2([c_0, c_1])
+    return point2_from_t(t)
 
-def hash_point_to_point(p):
+def hash_int_to_point1(addr):
+    hasher = sha3.keccak_256(int_to_bytes32(addr) + b"G1")
+    x = bytes_to_int(hasher.digest())
+    return point1_from_t(x)
+
+def hash_int_to_point2(addr):
+    hasher = sha3.keccak_256(int_to_bytes32(addr) + b"G2_0")
+    c_0 = bytes_to_int(hasher.digest())
+    hasher = sha3.keccak_256(int_to_bytes32(addr) + b"G2_1")
+    c_1 = bytes_to_int(hasher.digest())
+    t = FQ2([c_0, c_1])
+    return point2_from_t(t)
+
+def hash_str_to_point1(s):
+    hasher = sha3.keccak_256(bytes(s, "UTF-8") + b"G1")
+    x = bytes_to_int(hasher.digest())
+    return point1_from_t(x)
+
+def hash_str_to_point2(s):
+    hasher = sha3.keccak_256(bytes(s, "UTF-8") + b"G2_0")
+    c_0 = bytes_to_int(hasher.digest())
+    hasher = sha3.keccak_256(bytes(s, "UTF-8") + b"G2_1")
+    c_1 = bytes_to_int(hasher.digest())
+    t = FQ2([c_0, c_1])
+    return point2_from_t(t)
+
+def hash_point_to_point1(p):
     p = normalize(p)
     hasher = sha3.keccak_256()
-    hasher.update(int_to_bytes32(p[0].n))
-    hasher.update(int_to_bytes32(p[1].n))
-    x = bytes_to_int(hasher.digest()) % Pcurve
-    
-    return get_point_from_x(x)
 
-def add_point_to_hasher(hasher, point):
-    point = normalize(point)
-    hasher.update(int_to_bytes32(point[0].n))
-    hasher.update(int_to_bytes32(point[1].n))
+    if (type(p[0]) == FQ):
+        hasher.update(int_to_bytes32(p[0].n))
+        hasher.update(int_to_bytes32(p[1].n))
+    else:
+        hasher.update(int_to_bytes32(p[0].coeffs[0]))
+        hasher.update(int_to_bytes32(p[0].coeffs[1]))
+        hasher.update(int_to_bytes32(p[1].coeffs[0]))
+        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        
+    hasher.update(b"G1")
+    x = bytes_to_int(hasher.digest())    
+    return point1_from_t(x)
+
+def hash_point_to_point2(p):
+    p = normalize(p)
+
+    hasher = sha3.keccak_256()
+    if (type(p[0]) == FQ):
+        hasher.update(int_to_bytes32(p[0].n))
+        hasher.update(int_to_bytes32(p[1].n))
+    else:
+        hasher.update(int_to_bytes32(p[0].coeffs[0]))
+        hasher.update(int_to_bytes32(p[0].coeffs[1]))
+        hasher.update(int_to_bytes32(p[1].coeffs[0]))
+        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+    hasher.update(b"G2_0")
+    c_0 = bytes_to_int(hasher.digest())
+
+    hasher = sha3.keccak_256()
+    if (type(p[0]) == FQ):
+        hasher.update(int_to_bytes32(p[0].n))
+        hasher.update(int_to_bytes32(p[1].n))
+    else:
+        hasher.update(int_to_bytes32(p[0].coeffs[0]))
+        hasher.update(int_to_bytes32(p[0].coeffs[1]))
+        hasher.update(int_to_bytes32(p[1].coeffs[0]))
+        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+    hasher.update(b"G2_1")
+    c_1 = bytes_to_int(hasher.digest())
+    t = FQ2([c_0, c_1])   
+    return point2_from_t(t)
+
+def add_point_to_hasher(hasher, p):
+    p = normalize(p)
+
+    if (type(p[0]) == FQ):
+        hasher.update(int_to_bytes32(p[0].n))
+        hasher.update(int_to_bytes32(p[1].n))
+    else:
+        hasher.update(int_to_bytes32(p[0].coeffs[0]))
+        hasher.update(int_to_bytes32(p[0].coeffs[1]))
+        hasher.update(int_to_bytes32(p[1].coeffs[0]))
+        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        
     return hasher
 
 #Definition of H = hash_point_to_point(G)
-H = hash_point_to_point(G)
+H = hash_point_to_point1(G)
 
 def GetAssetH(addr):
     return hash_addr_to_point(addr)
