@@ -594,7 +594,7 @@ class BulletProof:
                 print(str(proofs[i].offset[j]), end="")
 
 #Single Bullet Proofs
-if (True):
+if (False):
     bits = 16   #bits
     m = 1       #commitments per proof
     print()

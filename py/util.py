@@ -121,7 +121,7 @@ def get_xy1(x_1, x_2, x_3):
     y2 = x_3**3 + b
     y = sqrt(y2)
     assert(y != FQ.zero())
-    return (x_2, y, FQ.one())
+    return (x_3, y, FQ.one())
 
 def get_xy2(x_1, x_2, x_3):
     #Check x_1
@@ -190,7 +190,7 @@ def hash_of_point(p):
     hasher = sha3.keccak_256()
 
     if (type(p[0]) == FQ):
-        hasher.update((p[0].n))
+        hasher.update(int_to_bytes(p[0].n, 32))
         hasher.update(int_to_bytes(p[1].n, 32))
     else:
         hasher.update(int_to_bytes(p[0].coeffs[0], 32))
