@@ -1,28 +1,7 @@
 from bulletproofutil import *
 from TokenConstants import *
 
-class BulletProof:
-    total_commit = [NullPoint]
-    power10 = [0]
-    offset = [0]
-    value = [0]
-    bf = [0]
-    
-    V = [NullPoint]
-    A = NullPoint
-    S = NullPoint
-    T1 = NullPoint
-    T2 = NullPoint
-    taux = 0
-    mu = 0
-    L = [NullPoint]
-    R = [NullPoint]
-    a = 0
-    b = 0
-    t = 0
-    N = 0
-    asset_addr = 0
-    
+class BulletProof:    
     def __init__(self, total_commit, power10, offset, value, bf, asset_addr, V, A, S, T1, T2, taux, mu, L, R, a, b, t, N):
         #Commitment data
         self.total_commit = total_commit
@@ -104,7 +83,7 @@ class BulletProof:
         if (asset_addr == 0):
             Hasset = H
         else:
-            Hasset = hash_addr_to_point(asset_addr)
+            Hasset = hash_addr_to_point1(asset_addr)
 
         #Create V[]
         V = [NullPoint]*M
@@ -135,7 +114,7 @@ class BulletProof:
 
         #Start hasher for Fiat-Shamir
 	#Hash V[], including array length
-        hasher = sha3.keccak_256(int_to_bytes32(M*2))
+        hasher = sha3.keccak_256(int_to_bytes(M*2, 32))
         for j in range(0, M):
             hasher = add_point_to_hasher(hasher, V[j])
 
@@ -144,10 +123,10 @@ class BulletProof:
         hasher = add_point_to_hasher(hasher, S)
 	
         y = bytes_to_int(hasher.digest()) % Ncurve
-        hasher = sha3.keccak_256(int_to_bytes32(y))
+        hasher = sha3.keccak_256(int_to_bytes(y, 32))
         
         z = bytes_to_int(hasher.digest()) % Ncurve
-        hasher = sha3.keccak_256(int_to_bytes32(z))
+        hasher = sha3.keccak_256(int_to_bytes(z, 32))
 
         #Calculate l0, l1, r0, and r1
         vp2 = vPow(2, N)
@@ -184,7 +163,7 @@ class BulletProof:
         hasher = add_point_to_hasher(hasher, T1)
         hasher = add_point_to_hasher(hasher, T2)
         x = bytes_to_int(hasher.digest()) % Ncurve
-        hasher = sha3.keccak_256(int_to_bytes32(x))
+        hasher = sha3.keccak_256(int_to_bytes(x, 32))
       
         #Calculate taux and mu
         taux = sAdd(sMul(tau1, x), sMul(tau2, sSq(x)))
@@ -198,11 +177,11 @@ class BulletProof:
         t = vDot(l, r)
 
         #Continue Fiat-Shamir
-        hasher.update(int_to_bytes32(taux))
-        hasher.update(int_to_bytes32(mu))
-        hasher.update(int_to_bytes32(t))
+        hasher.update(int_to_bytes(taux, 32))
+        hasher.update(int_to_bytes(mu, 32))
+        hasher.update(int_to_bytes(t, 32))
         x_ip = bytes_to_int(hasher.digest()) % Ncurve
-        hasher = sha3.keccak_256(int_to_bytes32(x_ip))
+        hasher = sha3.keccak_256(int_to_bytes(x_ip, 32))
 
         #Prepare Gprime, Hprime, aprime, and bprime
         Gprime = Gi[:(M*N)]
@@ -241,7 +220,7 @@ class BulletProof:
             hasher = add_point_to_hasher(hasher, L[rounds])
             hasher = add_point_to_hasher(hasher, R[rounds])
             w[rounds] = bytes_to_int(hasher.digest()) % Ncurve
-            hasher = sha3.keccak_256(int_to_bytes32(w[rounds]))
+            hasher = sha3.keccak_256(int_to_bytes(w[rounds], 32))
 
             #Update Gprime, Hprime, aprime, and bprime
             Gprime = pvAdd(pvScale(gp1, sInv(w[rounds])), pvScale(gp2, w[rounds]))
@@ -320,14 +299,14 @@ class BulletProof:
             if (proof.asset_addr == 0):
                 Hasset = H
             else:
-                Hasset = hash_addr_to_point(proof.asset_addr)
+                Hasset = hash_addr_to_point1(proof.asset_addr)
 
             #Pick weight for this proof
             weight = getRandom()
 
             #Reconstruct Challenges
 	    #Hash V[], including array length
-            hasher = sha3.keccak_256(int_to_bytes32(M*2))
+            hasher = sha3.keccak_256(int_to_bytes(M*2, 32))
             for j in range(0, M):
                 hasher = add_point_to_hasher(hasher, proof.V[j])
 
@@ -337,20 +316,20 @@ class BulletProof:
             hasher = add_point_to_hasher(hasher, proof.S)
             y = bytes_to_int(hasher.digest()) % Ncurve
             
-            hasher = sha3.keccak_256(int_to_bytes32(y))
+            hasher = sha3.keccak_256(int_to_bytes(y, 32))
             z = bytes_to_int(hasher.digest()) % Ncurve
             
-            hasher = sha3.keccak_256(int_to_bytes32(z))
+            hasher = sha3.keccak_256(int_to_bytes(z, 32))
             hasher = add_point_to_hasher(hasher, proof.T1)
             hasher = add_point_to_hasher(hasher, proof.T2)
             x = bytes_to_int(hasher.digest()) % Ncurve
             
-            hasher = sha3.keccak_256(int_to_bytes32(x))
-            hasher.update(int_to_bytes32(proof.taux))
-            hasher.update(int_to_bytes32(proof.mu))
-            hasher.update(int_to_bytes32(proof.t))
+            hasher = sha3.keccak_256(int_to_bytes(x, 32))
+            hasher.update(int_to_bytes(proof.taux, 32))
+            hasher.update(int_to_bytes(proof.mu, 32))
+            hasher.update(int_to_bytes(proof.t, 32))
             x_ip = bytes_to_int(hasher.digest()) % Ncurve
-            hasher = sha3.keccak_256(int_to_bytes32(x_ip))
+            hasher = sha3.keccak_256(int_to_bytes(x_ip, 32))
 
             #Calculate k
             vp2 = vPow(2, proof.N)
@@ -368,7 +347,7 @@ class BulletProof:
                 hasher = add_point_to_hasher(hasher, proof.L[i])
                 hasher = add_point_to_hasher(hasher, proof.R[i])
                 w[i] = bytes_to_int(hasher.digest()) % Ncurve
-                hasher = sha3.keccak_256(int_to_bytes32(w[i]))
+                hasher = sha3.keccak_256(int_to_bytes(w[i], 32))
 
             #Debug Printing
             if (False):
@@ -615,8 +594,8 @@ class BulletProof:
                 print(str(proofs[i].offset[j]), end="")
 
 #Single Bullet Proofs
-if (False):
-    bits = 64   #bits
+if (True):
+    bits = 16   #bits
     m = 1       #commitments per proof
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")

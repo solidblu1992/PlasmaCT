@@ -1,63 +1,44 @@
 from util import *
 from optimized_pairing import *
 
-#Class that creates and verifies signatures for blank messages (M = G2)
+#Class that creates and verifies BLS signature
+#Warning: BLS aggregation is careless and vulnerable to a rogue-key attack.  Shouldn't matter because this is being used for MimbleWimble
 class BLS:
-    def __init__(self, P, S):
+    def __init__(self, message, P, S):
+        self.message = message
         self.P = P
         self.S = S
 
-    def sign(x):
-        S = multiply(G2, x)
+    def sign(x, message=""):
+        M = hash_str_to_point2(message)
+        S = multiply(M, x)
         P = multiply(G, x)
-        return BLS(P, S)
+        return BLS(message, P, S)
 
     def verify(self):
-        return (pairing(self.S, G) == pairing(G2, self.P))
+        M = hash_str_to_point2(self.message)
+        return (pairing(self.S, G) == pairing(M, self.P))
 
     def aggregate(bls_sigs):
+        message = bls_sigs[0].message
         P = bls_sigs[0].P
         S = bls_sigs[0].S
         for i in range(1, len(bls_sigs)):
+            assert(message == bls_sigs[i].message)
             P = add(P, bls_sigs[i].P)
             S = add(S, bls_sigs[i].S)
             
-        return BLS(P, S)
+        return BLS(bls_sigs[0].message, P, S)
 
-class BLSHardened:
-    def __init__(self, P, S, Psq):
-        self.P = P
-        self.S = S
-        self.Psq = Psq
-
-    def sign(x):
-        S = multiply(G2, x)
-        P = multiply(G, x)
-        Psq = multiply(G, sSq(x))
-        return BLSHardened(P, S, Psq)
-
-    def verify(self):
-        if (pairing(self.S, G) != pairing(G2, self.P)):
-            return False
-
-        if (pairing(self.S, self.P) != pairing(G2, self.Psq)):
-            return False
-
-        return True
-
-    def aggregate(bls_sigs):
-        P = bls_sigs[0].P
-        S = bls_sigs[0].S
-        Psq = bls_sig[0].Psq
-        
-        for i in range(1, len(bls_sigs)):
-            P = add(P, bls_sigs[i].P)
-            S = add(S, bls_sigs[i].S)
-            Psq = bls_sig[0].Psq
-            
-        return BLSHardened(P, S, Psq)
+    def print(self):
+        print("BLS Signature:")
+        print("message: \"" + self.message + "\"")
+        print("P:")
+        print(point_to_str(self.P))
+        print("S:")
+        print(point_to_str(self.S))
     
-if (False):
+if (True):
     x = getRandom(10)
     sigs = []
     for i in range(0, len(x)):
@@ -69,18 +50,5 @@ if (False):
     ms = time.time()
     sig_agg.verify()
     t = time.time()-ms
-
-if (True):
-    x = getRandom()
-    P = multiply(G, x)
-    S = multiply(G2, x)
-    
-    x2 = sSq(x)
-    P2 = multiply(G, x2)
-    S2 = multiply(G2, x2)
-    
-    x3 = sPow(x, 3)
-    P3 = multiply(G, x3)
-    S3 = multiply(G2, x3)
 
     

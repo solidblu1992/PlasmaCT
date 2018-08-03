@@ -9,10 +9,10 @@ class Token:
         self.decimals = decimals
         
         if (addr == 0):
-            self.H = hash_point_to_point(G)
+            self.H = hash_point_to_point1(G)
         else:
             self.addr = addr
-            self.H = hash_addr_to_point(addr)
+            self.H = hash_addr_to_point1(addr)
 
 TokenETH = Token(0x0000000000000000000000000000000000000000, 18)
 TokenDAI = Token(0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359, 18)

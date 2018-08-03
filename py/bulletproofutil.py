@@ -7,8 +7,8 @@ def GenBasePoints(N=128):
     Hi = [None]*N
 
     for i in range(0, N):
-        Gi[i] = hash_str_to_point("G" + str(i))
-        Hi[i] = hash_str_to_point("H" + str(i))
+        Gi[i] = hash_str_to_point1("G" + str(i))
+        Hi[i] = hash_str_to_point1("H" + str(i))
 
     return (Gi, Hi)
 	

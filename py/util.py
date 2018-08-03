@@ -1,5 +1,6 @@
 #from bn128_curve import *
 from optimized_curve import *
+from optimized_curve_cofactor import *
 import sha3
 
 #alt_bn_128 curve parameters
@@ -36,8 +37,7 @@ def sqrt(x):
         else:
             b = (alpha + FQ2.one())**((q-1)//2)
             return b*x0
-        
-
+              
 def bytes_to_int(bytes):
     result = 0
 
@@ -47,67 +47,36 @@ def bytes_to_int(bytes):
     return result
 
 def int_to_iterable(i):
-    x = []
-    bits = 0
-    while i > 0:
-        y = i & (0xFF << bits)
-        x = [(y >> bits)] + x
-        i = i - y
-        bits = bits + 8
+	x = []
+	bits = 0
+	while i > 0:
+		y = i & (0xFF << bits)
+		x = [(y >> bits)] + x
+		i = i - y
+		bits = bits + 8
 
-    return x
+	return x
 
-def int_to_bytes64(i):
-    x = bytes(int_to_iterable(i% 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff))
+def int_to_bytes(i, N=32):
+	x = bytes(int_to_iterable(i % ((1<<8*N)-1)))
+	if (len(x) < N):
+		y = bytes(N - len(x))
+		x = y+x
 
-    if (len(x) < 64):
-        y = bytes(64 - len(x))
-        x = y+x
-
-    return x
-
-def int_to_bytes32(i):
-    x = bytes(int_to_iterable(i% 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff))
-
-    if (len(x) < 32):
-        y = bytes(32 - len(x))
-        x = y+x
-
-    return x
-
-def int_to_bytes20(i):
-    x = bytes(int_to_iterable(i% 0xffffffffffffffffffffffffffffffffffffffff))
-
-    if (len(x) < 20):
-        y = bytes(20 - len(x))
-        x = y+x
-
-    return x
-
-def int_to_bytes16(i):
-    x = bytes(int_to_iterable(i% 0xffffffffffffffffffffffffffffffff))
-
-    if (len(x) < 16):
-        y = bytes(16 - len(x))
-        x = y+x
-
-    return x
-
-def to_point(x, y):
-    return (FQ(x), FQ(y), FQ(1))
+	return x
 
 def bytes_to_str(b, N=32):
-    s = hex(b)
+	s = hex(b)
 
-    if (len(s) < (2*N+2)):
-        y = (2*N+2) - len(s)
-        y = "0" * y
-        s = "0x" + y + s[2:]
+	if (len(s) < (2*N+2)):
+		y = (2*N+2) - len(s)
+		y = "0" * y
+		s = "0x" + y + s[2:]
 
-    return s
+	return s
 
 def str_to_bytes(msg):
-    return bytes(msg, 'UTF-8')
+	return bytes(msg, 'UTF-8')
 
 def point_to_str(p):
     if (type(p) != tuple):
@@ -124,7 +93,12 @@ def point_to_str(p):
     return s
 
 def hash_of_int(i):
-    hasher = sha3.keccak_256(int_to_bytes32(i))
+    hasher = sha3.keccak_256(int_to_bytes(i,32))
+    x = bytes_to_int(hasher.digest())
+    return x
+
+def hash_of_str(s):
+    hasher = sha3.keccak_256(bytes(s, "UTF-8"))
     x = bytes_to_int(hasher.digest())
     return x
 
@@ -185,14 +159,12 @@ def point1_from_t(t):
     x_2 = -x_1 - 1
     x_3 = 1 + 1 / w**2
 
-
-    return x_1, x_2, x_3
-
     T = get_xy1(x_1, x_2, x_3)
 
     return add(F0, T)
+    
 
-def point2_from_t(t):
+def point2_from_t(t):  
     if (type(t) != FQ2):
         t = FQ2([t, 0])
 
@@ -210,46 +182,47 @@ def point2_from_t(t):
 
     T = get_xy2(x_1, x_2, x_3)
 
-    return add(F0, T)
+    return multiply(add(F0, T), Fp2_cofactor)
+    
 
 def hash_of_point(p):
     p = normalize(p)
     hasher = sha3.keccak_256()
 
     if (type(p[0]) == FQ):
-        hasher.update(int_to_bytes32(p[0].n))
-        hasher.update(int_to_bytes32(p[1].n))
+        hasher.update((p[0].n))
+        hasher.update(int_to_bytes(p[1].n, 32))
     else:
-        hasher.update(int_to_bytes32(p[0].coeffs[0]))
-        hasher.update(int_to_bytes32(p[0].coeffs[1]))
-        hasher.update(int_to_bytes32(p[1].coeffs[0]))
-        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
         
     x = bytes_to_int(hasher.digest())
     return x
 
 def hash_addr_to_point1(addr):
-    hasher = sha3.keccak_256(int_to_bytes20(addr) + b"G1")
+    hasher = sha3.keccak_256(int_to_bytes(addr, 20) + b"G1")
     x = bytes_to_int(hasher.digest())
     return point1_from_t(x)
 
 def hash_addr_to_point2(addr):
-    hasher = sha3.keccak_256(int_to_bytes20(addr) + b"G2_0")
+    hasher = sha3.keccak_256(int_to_bytes(addr, 20) + b"G2_0")
     c_0 = bytes_to_int(hasher.digest())
-    hasher = sha3.keccak_256(int_to_bytes20(addr) + b"G2_1")
+    hasher = sha3.keccak_256(int_to_bytes(addr, 20) + b"G2_1")
     c_1 = bytes_to_int(hasher.digest())
     t = FQ2([c_0, c_1])
     return point2_from_t(t)
 
 def hash_int_to_point1(addr):
-    hasher = sha3.keccak_256(int_to_bytes32(addr) + b"G1")
+    hasher = sha3.keccak_256(int_to_bytes(addr, 32) + b"G1")
     x = bytes_to_int(hasher.digest())
     return point1_from_t(x)
 
 def hash_int_to_point2(addr):
-    hasher = sha3.keccak_256(int_to_bytes32(addr) + b"G2_0")
+    hasher = sha3.keccak_256(int_to_bytes(addr, 32) + b"G2_0")
     c_0 = bytes_to_int(hasher.digest())
-    hasher = sha3.keccak_256(int_to_bytes32(addr) + b"G2_1")
+    hasher = sha3.keccak_256(int_to_bytes(addr, 32) + b"G2_1")
     c_1 = bytes_to_int(hasher.digest())
     t = FQ2([c_0, c_1])
     return point2_from_t(t)
@@ -272,13 +245,13 @@ def hash_point_to_point1(p):
     hasher = sha3.keccak_256()
 
     if (type(p[0]) == FQ):
-        hasher.update(int_to_bytes32(p[0].n))
-        hasher.update(int_to_bytes32(p[1].n))
+        hasher.update(int_to_bytes(p[0].n, 32))
+        hasher.update(int_to_bytes(p[1].n, 32))
     else:
-        hasher.update(int_to_bytes32(p[0].coeffs[0]))
-        hasher.update(int_to_bytes32(p[0].coeffs[1]))
-        hasher.update(int_to_bytes32(p[1].coeffs[0]))
-        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
         
     hasher.update(b"G1")
     x = bytes_to_int(hasher.digest())    
@@ -289,25 +262,25 @@ def hash_point_to_point2(p):
 
     hasher = sha3.keccak_256()
     if (type(p[0]) == FQ):
-        hasher.update(int_to_bytes32(p[0].n))
-        hasher.update(int_to_bytes32(p[1].n))
+        hasher.update(int_to_bytes(p[0].n, 32))
+        hasher.update(int_to_bytes(p[1].n, 32))
     else:
-        hasher.update(int_to_bytes32(p[0].coeffs[0]))
-        hasher.update(int_to_bytes32(p[0].coeffs[1]))
-        hasher.update(int_to_bytes32(p[1].coeffs[0]))
-        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
     hasher.update(b"G2_0")
     c_0 = bytes_to_int(hasher.digest())
 
     hasher = sha3.keccak_256()
     if (type(p[0]) == FQ):
-        hasher.update(int_to_bytes32(p[0].n))
-        hasher.update(int_to_bytes32(p[1].n))
+        hasher.update(int_to_bytes(p[0].n, 32))
+        hasher.update(int_to_bytes(p[1].n, 32))
     else:
-        hasher.update(int_to_bytes32(p[0].coeffs[0]))
-        hasher.update(int_to_bytes32(p[0].coeffs[1]))
-        hasher.update(int_to_bytes32(p[1].coeffs[0]))
-        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
     hasher.update(b"G2_1")
     c_1 = bytes_to_int(hasher.digest())
     t = FQ2([c_0, c_1])   
@@ -317,13 +290,13 @@ def add_point_to_hasher(hasher, p):
     p = normalize(p)
 
     if (type(p[0]) == FQ):
-        hasher.update(int_to_bytes32(p[0].n))
-        hasher.update(int_to_bytes32(p[1].n))
+        hasher.update(int_to_bytes(p[0].n, 32))
+        hasher.update(int_to_bytes(p[1].n, 32))
     else:
-        hasher.update(int_to_bytes32(p[0].coeffs[0]))
-        hasher.update(int_to_bytes32(p[0].coeffs[1]))
-        hasher.update(int_to_bytes32(p[1].coeffs[0]))
-        hasher.update(int_to_bytes32(p[1].coeffs[1]))
+        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
         
     return hasher
 
@@ -431,7 +404,7 @@ if (useWindowed):
     
     G_pre = precompute_points(G)
     H_pre = precompute_points(H)
-    #G2_pre = precompute_points(G2)
+    G2_pre = precompute_points(G2)
     
     def multiply(P, s, wBits=5):
         wPow = (1 << wBits)
@@ -451,6 +424,8 @@ if (useWindowed):
             
             if (eq(P, G2)):
                 P_pre = G2_pre
+            else:
+                P_pre = precompute_points(P, wBits)
         
         #Get NAF digits
         dj = []
