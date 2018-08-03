@@ -33,8 +33,8 @@ The block producer publishes the current block hash to the main chain.  The bloc
 Prameter | Type | Description
 --- | --- | ---
 blk_num | uint | Number of the block
-sig(0) | G1Point[2] | Aggregated signature for tx's in block, signing block number = 0
-sig(blk_num) | G1Point[2] | Aggregated signature for tx's in block, signing current block number
+sig(0) | BLS | Aggregated signature for tx's in block, signing block number = 0
+sig(blk_num) | BLS | Aggregated signature for tx's in block, signing current block number
 sig_offset | uint | Total signature offset for tx's in block.  Used to obscure groupings of inputs and outputs.
 outputs | {uint, BulletProof}[] | All outputs included in the block tx.  uint specifies current block number.  BulletProof contains output commitment
 inputs | {uint, G1Point}[] | All inputs included in the block tx.  uint specifies the block number that created the input.
