@@ -75,6 +75,20 @@ def bytes_to_str(b, N=32):
 
 	return s
 
+def point_to_bytes(p):
+    if (len(p) > 2):
+        p = normalize(p)
+        
+    if (type(p[0]) == FQ):
+        data = [int_to_bytes(p[0].n, 32), int_to_bytes(p[1].n, 32)]
+    else:
+        data = [[int_to_bytes(p[0].coeffs[0],32),
+                 int_to_bytes(p[0].coeffs[1],32)],
+                [int_to_bytes(p[1].coeffs[0],32),
+                 int_to_bytes(p[1].coeffs[1],32)]]
+
+    return data
+
 def str_to_bytes(msg):
 	return bytes(msg, 'UTF-8')
 

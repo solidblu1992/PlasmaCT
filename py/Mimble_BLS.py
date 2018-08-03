@@ -295,23 +295,25 @@ class MimbleBlock():
         if (self.diff_tx == None): return data
 
         #Block Number
-        data += [self.diff_tx.blk_num]
+        data += [int_to_bytes(self.diff_tx.blk_num, 32)]
 
         #Sig(0)
-        P = normalize(self.diff_tx.sig_0.P)
-        S = normalize(self.diff_tx.sig_0.S)
-        data += [[P, S]]
+        P = point_to_bytes(self.diff_tx.sig_0.P)
+        S = point_to_bytes(self.diff_tx.sig_0.S)
+        data += [[P,S]]
 
         #Sig(blk_num)
         if (self.diff_tx.sig_blknum != None):
-            P = normalize(self.diff_tx.sig_blknum.P)
-            S = normalize(self.diff_tx.sig_blknum.S)
-            data += [[P, S]]
+            P = point_to_bytes(self.diff_tx.sig_blknum.P)
+            S = point_to_bytes(self.diff_tx.sig_blknum.S)
+            data += [[P,S]]
         else:
-            data += [None]
-
+            data += [[]]
+    
         #sig offset
-        data += [self.diff_tx.offset]
+        data += [int_to_bytes(self.diff_tx.offset, 32)]
+            
+        return data
 
         #outputs
         outputs = []
@@ -320,37 +322,38 @@ class MimbleBlock():
 
             V = []
             for i in range(0, len(output.bp.V)):
-                V += [normalize(output.bp.V[i])]
+                V += [[point_to_bytes(output.bp.V[i])]]
 
             BP += [[V]]
-            BP += [normalize(output.bp.A)]
-            BP += [normalize(output.bp.S)]
-            BP += [normalize(output.bp.T1)]
-            BP += [normalize(output.bp.T2)]
+            BP += [[point_to_bytes(output.bp.A)]]
+            BP += [[point_to_bytes(output.bp.S)]]
+            BP += [[point_to_bytes(output.bp.T1)]]
+            BP += [[point_to_bytes(output.bp.T2)]]
 
             L = []
             R = []
             for i in range(0, len(output.bp.L)):
-                L += [normalize(output.bp.L[i])]
-                R += [normalize(output.bp.R[i])]
+                L += [[point_to_bytes(output.bp.L[i])]]
+                R += [[point_to_bytes(output.bp.R[i])]]
 
             BP += [[L]]
             BP += [[R]]
-            BP += [output.bp.taux]
-            BP += [output.bp.mu]
-            BP += [output.bp.a]
-            BP += [output.bp.b]
-            BP += [output.bp.t]
-            BP += [output.bp.N]
+            BP += [int_to_bytes(output.bp.taux, 32)]
+            BP += [int_to_bytes(output.bp.mu, 32)]
+            BP += [int_to_bytes(output.bp.a, 32)]
+            BP += [int_to_bytes(output.bp.b, 32)]
+            BP += [int_to_bytes(output.bp.t, 32)]
+            BP += [int_to_bytes(output.bp.N, 32)]
             
-            outputs += [[output.blk_num, BP]]
+            outputs += [[int_to_bytes32(output.blk_num), BP]]
 
         data += [outputs]
 
         #inputs
         inputs = []
         for inp in self.diff_tx.inputs:
-            inputs += [[inp.blk_num, normalize(inp.commitment)]]
+            inputs += [[int_to_bytes32(inp.blk_num, 32),
+                        point_to_bytes(inp.commitment)]]
 
         data += [inputs]
         
