@@ -1,6 +1,6 @@
 # PlasmaCT
 ## What is it?
-PlasmaCT is a combination of Confidential Transactions, Plasma, and Mimblewimble with various novel improvements.  The goal is to allow for private transactions on the Ethereum blockchain in a scalable way.
+PlasmaCT is a combination of Confidential Transactions, Plasma, and Mimblewimble with various possible novel improvements.  The goal is to allow for private transactions on the Ethereum blockchain in a scalable way.
 ## Mimble Ideas
 ### Signatures
 There are currently two types of signatures proposed.  The first are Schnorr signatures (R = r * G1, s) and the second are BLS signatures (S = x * HtP[msg], P = x * G1).  Both are used to prove that the remander (x * G1) is known for the difference between output and input pedersen commitments.
