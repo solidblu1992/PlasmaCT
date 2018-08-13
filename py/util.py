@@ -65,20 +65,14 @@ def int_to_bytes(i, N=32):
 
 	return x
 
-def bytes_to_str(b, N=32):
-    s = hex(b)
-
-    if (len(s) < (2*N+2)):
-	    y = (2*N+2) - len(s)
-	    y = "0" * y
-	    s = "0x" + y + s[2:]
-
-    return s
-
-def bytes_to_str2(b):
+def bytes_to_str(b):
     s = "0x"
     for i in range(0, len(b)):
-        s += hex(b[i])[2:]
+        s_new = hex(b[i])[2:]
+        if (len(s_new) < 2):
+            s += "0" + s_new
+        else:
+            s += s_new
 
     return s
 
