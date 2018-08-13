@@ -38,11 +38,11 @@ def sqrt(x):
             b = (alpha + FQ2.one())**((q-1)//2)
             return b*x0
               
-def bytes_to_int(bytes):
+def bytes_to_int(b):
     result = 0
 
-    for b in bytes:
-        result = result * 256 + int(b)
+    for byte in b:
+        result = result * 256 + int(byte)
 
     return result
 
@@ -66,14 +66,21 @@ def int_to_bytes(i, N=32):
 	return x
 
 def bytes_to_str(b, N=32):
-	s = hex(b)
+    s = hex(b)
 
-	if (len(s) < (2*N+2)):
-		y = (2*N+2) - len(s)
-		y = "0" * y
-		s = "0x" + y + s[2:]
+    if (len(s) < (2*N+2)):
+	    y = (2*N+2) - len(s)
+	    y = "0" * y
+	    s = "0x" + y + s[2:]
 
-	return s
+    return s
+
+def bytes_to_str2(b):
+    s = "0x"
+    for i in range(0, len(b)):
+        s += hex(b[i])[2:]
+
+    return s
 
 def point_to_bytes(p):
     if (len(p) > 2):
@@ -88,6 +95,21 @@ def point_to_bytes(p):
                  int_to_bytes(p[1].coeffs[1],32)]]
 
     return data
+
+def bytes_to_point(b):
+    assert(type(b) == list)
+    assert(len(b) == 2)
+
+    if (type(b[0]) != list):
+        P = (FQ(bytes_to_int(b[0])),
+             FQ(bytes_to_int(b[1])),
+             FQ(1))
+    else:
+        P = (FQ2([bytes_to_int(b[0][0]), bytes_to_int(b[0][1])]),
+             FQ2([bytes_to_int(b[1][0]), bytes_to_int(b[1][1])]),
+             FQ2([1, 0]))
+        
+    return P
 
 def str_to_bytes(msg):
 	return bytes(msg, 'UTF-8')
@@ -650,6 +672,9 @@ def sInv(a):
     assert(sMul(a, t1) == 1)
     return t1
 
+def sDiv(a, b):
+    return sMul(a, sInv(b))
+
 def vPow(x, N):
     if (x == 0):
         return [0]*N
@@ -720,3 +745,4 @@ def vSlice(a, start, stop):
         out[i-start] = a[i]
 
     return out
+

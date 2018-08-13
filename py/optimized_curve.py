@@ -130,7 +130,9 @@ w = FQ12([0, 1] + [0] * 10)
 def neg(pt):
     if pt is None:
         return None
+
     x, y, z = pt
+        
     return (x, -y, z)
 
 

@@ -67,7 +67,6 @@ class BulletProof:
         for i in range(0, diffM):
             v = v + [getRandom() % (2**N)]
             gamma = gamma + [getRandom()]
-            asset_addr = asset_addr + [0]
 
         #Make sure N is a power of 2
         logN = math.floor(math.log(N, 2))
@@ -469,8 +468,9 @@ class BulletProof:
             pone = (self.offset[i] + 10**self.power10[i]) / 10**18
             pmax = (self.offset[i] + (2**self.N-1)*(10**self.power10[i])) / 10**18
             print("possible range: " + str(pmin) + ", " + str(pone) + ", ..., " + str(pmax) + " " + unit18)
-            print("[value: " + str(self.value[i] / 10**18) + " " + unit18 + " or " + str(self.value[i]) + " " + unit1 +"]")
-            print("[bf: " + hex(self.bf[i]) + "]")
+            if (self.value != None):
+                print("[value: " + str(self.value[i] / 10**18) + " " + unit18 + " or " + str(self.value[i]) + " " + unit1 +"]")
+                print("[bf: " + hex(self.bf[i]) + "]")
             print()
         
         print("Proof Parameters:")

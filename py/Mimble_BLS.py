@@ -2,9 +2,11 @@ from util import *
 from bulletproof import *
 from optimized_curve import *
 from BLS import *
+import rlp
 
+default_bit_count=32
 
-def GetRandomTxValues(input_count, output_count, max_value=1000):
+def GetRandomTxValues(input_count, output_count, max_value=(2**default_bit_count-1)):
     import random
 
     #Pick values
@@ -50,37 +52,36 @@ def GetRandomTxValues(input_count, output_count, max_value=1000):
     
     return (v_in, v_out, bf_in, bf_out, off, rem)
 
-class TxCommitment():
-    def __init__(self, x, y):
-        self.x = getRandom()
-        self.y = getRandom()
-
 class TxOutput(): 
     def __init__(self, commitment, blknum=0, bp=None):
         self.blk_num = blk_num
         self.commitment = commitment
         self.bp = bp
 
-    def Create(value, bf, createBP=False, blknum=0):
+    def Create(value, bf, asset_addr=0, power10=12, offset=0, createBP=False, blknum=0):
         if (isinstance(value, (list, tuple))):
             out = [None]*len(value)
 
             if (not isinstance(blknum, (list, tuple))):
                 blknum = [blknum]*len(out)
-            
-            for i in range(0, len(out)):
-                commitment = shamir([G, H], [bf[i], value[i]])
-                
+
+            total_gamma = 0
+            for i in range(0, len(out)):                
+                bp = None
+                commitment = None
                 if (createBP):
-                    bp = BulletProof.Generate(value[i], power10=12, offset=0, gamma=bf[i], N=32, asset_addr=0)
+                    gamma = sDiv(bf[i], 10**power10)
+                    total_gamma = sAdd(total_gamma, gamma)
+                    bp = BulletProof.Generate(value[i], power10=power10, offset=offset, gamma=gamma, N=default_bit_count, asset_addr=asset_addr)
+                    commitment = bp.total_commit[0]
                 else:
-                    bp = None
-                    
-                out[i] = TxOutput(commitment, blknum[i], bp)
+                    commitment = shamir([G, H], [bf[i], value[i]*(10**power10)+offset])
+
+                out[i] = TxOutput(commitment, blknum[i], bp)                
 
             return out
         else:
-            return TxOutput(shamir([G, H], [bf, value]), blknum)
+            return TxOutput(shamir([G, H], [bf[i], value[i]*(10**power10)+offset]), blknum)
     
 class MimbleTx():
     def __init__(self, blk_num, inputs, outputs, sig_0, sig_blknum, offset):
@@ -217,8 +218,8 @@ class MimbleTx():
             print("\tS: " + point_to_str(self.sig_blknum.S))
 
 class MimbleBlock():
-    def __init__(self):
-        self.diff_tx = None
+    def __init__(self, diff_tx=None):
+        self.diff_tx = diff_tx
 
     def add_tx(self, tx):
         if (self.diff_tx == None):
@@ -289,9 +290,8 @@ class MimbleBlock():
         print("verify() => " + str(t0+t1) + "s (" + str(t2) + "s per bulletproof)")
         return True
 
-    def export(self):
+    def encode(self):
         data = []
-
         if (self.diff_tx == None): return data
 
         #Block Number
@@ -312,32 +312,41 @@ class MimbleBlock():
     
         #sig offset
         data += [int_to_bytes(self.diff_tx.offset, 32)]
-            
-        return data
 
         #outputs
         outputs = []
         for output in self.diff_tx.outputs:
             BP = []
 
-            V = []
-            for i in range(0, len(output.bp.V)):
-                V += [[point_to_bytes(output.bp.V[i])]]
+            BP += [int_to_bytes(output.bp.asset_addr, 20)]
 
-            BP += [[V]]
-            BP += [[point_to_bytes(output.bp.A)]]
-            BP += [[point_to_bytes(output.bp.S)]]
-            BP += [[point_to_bytes(output.bp.T1)]]
-            BP += [[point_to_bytes(output.bp.T2)]]
+            commit = []
+            V = []
+            Pow10 = []
+            Off = []
+            for i in range(0, len(output.bp.V)):
+                commit += [point_to_bytes(output.bp.total_commit[i])]
+                V += [point_to_bytes(output.bp.V[i])]
+                Pow10 += [int_to_bytes(output.bp.power10[i])]
+                Off += [int_to_bytes(output.bp.offset[i])]
+
+            BP += [commit]
+            BP += [V]
+            BP += [Pow10]
+            BP += [Off]
+            BP += [point_to_bytes(output.bp.A)]
+            BP += [point_to_bytes(output.bp.S)]
+            BP += [point_to_bytes(output.bp.T1)]
+            BP += [point_to_bytes(output.bp.T2)]
 
             L = []
             R = []
             for i in range(0, len(output.bp.L)):
-                L += [[point_to_bytes(output.bp.L[i])]]
-                R += [[point_to_bytes(output.bp.R[i])]]
+                L += [point_to_bytes(output.bp.L[i])]
+                R += [point_to_bytes(output.bp.R[i])]
 
-            BP += [[L]]
-            BP += [[R]]
+            BP += [L]
+            BP += [R]
             BP += [int_to_bytes(output.bp.taux, 32)]
             BP += [int_to_bytes(output.bp.mu, 32)]
             BP += [int_to_bytes(output.bp.a, 32)]
@@ -345,19 +354,100 @@ class MimbleBlock():
             BP += [int_to_bytes(output.bp.t, 32)]
             BP += [int_to_bytes(output.bp.N, 32)]
             
-            outputs += [[int_to_bytes32(output.blk_num), BP]]
+            outputs += [[int_to_bytes(output.blk_num, 32), BP]]
 
         data += [outputs]
 
         #inputs
         inputs = []
         for inp in self.diff_tx.inputs:
-            inputs += [[int_to_bytes32(inp.blk_num, 32),
+            inputs += [[int_to_bytes(inp.blk_num, 32),
                         point_to_bytes(inp.commitment)]]
 
         data += [inputs]
+        return rlp.encode(data)
+
+    def decode(rlp_data):
+        data = rlp.decode(rlp_data)
+
+        #Block Number
+        blk_num = bytes_to_int(data[0])
+
+        #Sig(0)
+        P = bytes_to_point(data[1][0])
+        S = bytes_to_point(data[1][1])
+        sig_0 = BLS("0", P, S)
+
+        #Sig(blk_num)
+        if (len(data[2]) > 0):
+            P = bytes_to_point(data[2][0])
+            S = bytes_to_point(data[2][1])
+            sig_blknum = BLS(str(blk_num), P, S)
+
+        #Sig Offset
+        sig_offset = bytes_to_int(data[3])
+
+        #Outputs
+        outputs = []
+        debug = []
+        for i in range(0, len(data[4])):
+            #Output Block Number
+            output_blknum = bytes_to_int(data[4][i][0])
+
+            #Bullet Proof
+            #Asset Address
+            bp_asset = bytes_to_int(data[4][i][1][0])
+            
+            #Commitments
+            bp_totalcommit = [] #TC = V*(10**Pow10) + Off
+            bp_V = []
+            bp_Pow10 = []
+            bp_Off = []
+            for j in range(0, len(data[4][i][1][1])):
+                bp_totalcommit += [bytes_to_point(data[4][i][1][1][j])]
+                bp_V += [bytes_to_point(data[4][i][1][2][j])]
+                bp_Pow10 += [bytes_to_int(data[4][i][1][3][j])]
+                bp_Off += [bytes_to_int(data[4][i][1][4][j])]
+
+            bp_A = bytes_to_point(data[4][i][1][5])
+            bp_S = bytes_to_point(data[4][i][1][6])
+            bp_T1 = bytes_to_point(data[4][i][1][7])
+            bp_T2 = bytes_to_point(data[4][i][1][8])
+
+            bp_L = []
+            bp_R = []
+            for j in range(0, len(data[4][i][1][9])):
+                bp_L += [bytes_to_point(data[4][i][1][9][j])]
+                bp_R += [bytes_to_point(data[4][i][1][10][j])]
+
+            bp_taux = bytes_to_int(data[4][i][1][11])
+            bp_mu = bytes_to_int(data[4][i][1][12])
+            bp_a = bytes_to_int(data[4][i][1][13])
+            bp_b = bytes_to_int(data[4][i][1][14])
+            bp_t = bytes_to_int(data[4][i][1][15])
+            bp_N = bytes_to_int(data[4][i][1][16])
+
+            BP = BulletProof(bp_totalcommit, bp_Pow10, bp_Off, None, None, bp_asset,
+                             bp_V, bp_A, bp_S, bp_T1, bp_T2,
+                             bp_taux, bp_mu,
+                             bp_L, bp_R,
+                             bp_a, bp_b, bp_t, bp_N)
+            
+            outputs += [TxOutput(bp_totalcommit[0], output_blknum, BP)]
+            
+        #Inputs
+        inputs = []
+        for i in range(0, len(data[5])):
+            #Input Block Number
+            input_blknum = bytes_to_int(data[5][i][0])
+            input_commitment = bytes_to_point(data[5][i][1])
+            inputs += [TxOutput(input_commitment, input_blknum)]
+
+        #Create Diff Tx and Block
+        diff_tx = MimbleTx(blk_num, inputs, outputs, sig_0, sig_blknum, sig_offset)
+        block = MimbleBlock(diff_tx)
         
-        return data
+        return block
     
     def print(self):
         print("MimbleBlock:")
@@ -376,8 +466,20 @@ if (True):
     tx1 = MimbleTx.create_random(3, 2, blk_num)
     tx2 = MimbleTx.create_known([7, 4], [25, 26], [11], [70], blk_num)
     tx3 = MimbleTx.create_known([11], [70], [5, 6], [10, 21], blk_num)
+    tx4 = MimbleTx.create_known([10], [1], [10], [2], blk_num)
+
     x = MimbleBlock()
     x.add_tx(tx1)
     x.add_tx(tx2)
     x.add_tx(tx3)
-    x.print()
+    x.add_tx(tx4)
+
+    x_encoded = x.encode()
+    x_decoded = MimbleBlock.decode(x_encoded)
+
+    print("Block (Before):")
+    x.diff_tx.print(True)
+    print()
+    print()
+    print("Block (After):")
+    x_decoded.diff_tx.print(True)
