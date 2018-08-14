@@ -116,10 +116,10 @@ def point_to_str(p):
         p = normalize(p)
 
     if (type(p[0]) == FQ):
-        s = (bytes_to_str(p[0].n) + ",\n" + bytes_to_str(p[1].n))
+        s = (bytes_to_str(int_to_bytes(p[0].n, 32)) + ",\n" + bytes_to_str(int_to_bytes(p[1].n, 32)))
     else:
-        s = "[" + bytes_to_str(p[0].coeffs[0]) + ",\n" + bytes_to_str(p[0].coeffs[1]) + "],\n["
-        s += bytes_to_str(p[1].coeffs[0]) + ",\n" + bytes_to_str(p[1].coeffs[1]) + "]"
+        s = "[" + bytes_to_str(int_to_bytes(p[0].coeffs[0], 32)) + ",\n" + bytes_to_str(int_to_bytes(p[0].coeffs[1], 32)) + "],\n["
+        s += bytes_to_str(int_to_bytes(p[1].coeffs[0], 32)) + ",\n" + bytes_to_str(int_to_bytes(p[1].coeffs[1], 32)) + "]"
     return s
 
 def hash_of_int(i):
@@ -377,15 +377,24 @@ def ExpandPoint(Pin):
 
     return Pout
 
-def getRandom(count=1):
+def getRandom(count=1, bits=254, modulus=Ncurve):
     import random
 
     if (count == 1):
-        out = (random.SystemRandom().getrandbits(254) % Ncurve)
+        out = random.SystemRandom().getrandbits(bits)
+
+        if (modulus > 0):
+            out = out % modulus
     else:
         out = []
-        for i in range(0, count):
-            out = out + [random.SystemRandom().getrandbits(254) % Ncurve]
+
+        if (modulus > 0):
+            for i in range(0, count):
+                out += [random.SystemRandom().getrandbits(bits) % modulus]
+        else:
+            for i in range(0, count):
+                out += [random.SystemRandom().getrandbits(bits)]
+            
 
     return out
 

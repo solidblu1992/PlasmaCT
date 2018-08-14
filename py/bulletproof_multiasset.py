@@ -156,8 +156,8 @@ class BulletProof:
         tau1 = getRandom()
         tau2 = getRandom()
         
-        T1 = shamir([G] + Hasset, [tau1] + t1)
-        T2 = shamir([G] + Hasset, [tau2] + t2)
+        T1 = shamir_batch([G] + Hasset, [tau1] + t1)
+        T2 = shamir_batch([G] + Hasset, [tau2] + t2)
         
         #Continue Fiat-Shamir
         hasher = add_point_to_hasher(hasher, T1)
@@ -443,7 +443,7 @@ class BulletProof:
         y1_items = list(y1.values())
         Hasset_items = list(Hasset.values())
 
-        Check1 = shamir([G] + Hasset_items, [y0] + y1_items)
+        Check1 = shamir_batch([G] + Hasset_items, [y0] + y1_items)
         Check1 = add(Check1, neg(Y2))
         Check1 = add(Check1, neg(Y3))
         if (not eq(Check1, Y4)):
@@ -497,11 +497,11 @@ class BulletProof:
                 unit1 += ["wei"]
             else:
                 unit18 += ["TOKEN"]
-                unit1 += ["wTOKEN (@" + bytes_to_str(int_to_bytes(self.asset_addr[i], 20)) + ")"]
+                unit1 += ["wTOKEN (@ " + bytes_to_str(int_to_bytes(self.asset_addr[i], 20)) + ")"]
         
         for i in range(0, len(self.total_commit)):
             print("Commitment " + str(i))
-            print("total_commit: " + bytes_to_str(int_to_bytes(CompressPoint(self.total_commit[i]), 2)))
+            print("total_commit: " + bytes_to_str(int_to_bytes(CompressPoint(self.total_commit[i]), 32)))
             print("power10: " + str(self.power10[i]))
             print("offset: " + str(self.offset[i]))
 
@@ -526,8 +526,8 @@ class BulletProof:
         print("S:    " + bytes_to_str(int_to_bytes(CompressPoint(self.S),32)))
         print("T1:   " + bytes_to_str(int_to_bytes(CompressPoint(self.T1),32)))
         print("T2:   " + bytes_to_str(int_to_bytes(CompressPoint(self.T2),32)))
-        print("taux: " + hex(self.taux))
-        print("mu:   " + hex(self.mu))
+        print("taux: " + bytes_to_str(int_to_bytes(self.taux, 32)))
+        print("mu:   " + bytes_to_str(int_to_bytes(self.mu, 32)))
 
         for i in range(0, len(self.L)):
             print("L[" + str(i) + "]: " + bytes_to_str(int_to_bytes(CompressPoint(self.L[i]),32)))
@@ -552,15 +552,15 @@ class BulletProof:
         combined |= (len(self.V)*2 & 0xFFFFFFFFFFFFFFFF) << 64
         combined |= (len(self.L)*2 & 0xFFFFFFFFFFFFFFFF) << 128
         combined |= (len(self.R)*2 & 0xFFFFFFFFFFFFFFFF) << 192
-        print(bytes_to_str(combined) + ",")
+        print(bytes_to_str(int_to_bytes(combined, 32)) + ",")
         for i in range(0, len(self.V)):
             print(point_to_str(self.V[i]) + ",")
         print(point_to_str(self.A) + ",")
         print(point_to_str(self.S) + ",")
         print(point_to_str(self.T1) + ",")
         print(point_to_str(self.T2) + ",")
-        print(bytes_to_str(self.taux) + ",")
-        print(bytes_to_str(self.mu) + ",")
+        print(bytes_to_str(int_to_bytes(self.taux, 32)) + ",")
+        print(bytes_to_str(int_to_bytes(self.mu, 32)) + ",")
 
         for i in range(0, len(self.L)):
             print(point_to_str(self.L[i]) + ",")
@@ -568,11 +568,11 @@ class BulletProof:
         for i in range(0, len(self.R)):
             print(point_to_str(self.R[i]) + ",")
 
-        print(bytes_to_str(self.a) + ",")
-        print(bytes_to_str(self.b) + ",")
+        print(bytes_to_str(int_to_bytes(self.a, 32)) + ",")
+        print(bytes_to_str(int_to_bytes(self.b, 32)) + ",")
 
         for i in range(0, len(self.t)):
-            print(bytes_to_str(self.t[i]) + ",")
+            print(bytes_to_str(int_to_bytes(self.t[i],32)) + ",")
 
         print()
         print("power10:")
@@ -605,25 +605,30 @@ class BulletProof:
             combined |= (len(proofs[i].V)*2 & 0xFFFFFFFFFFFFFFFF) << 64
             combined |= (len(proofs[i].L)*2 & 0xFFFFFFFFFFFFFFFF) << 128
             combined |= (len(proofs[i].R)*2 & 0xFFFFFFFFFFFFFFFF) << 192
-            print(bytes_to_str(combined) + ",")
+            print(bytes_to_str(int_to_bytes(combined, 32)) + ",")
             for j in range(0, len(proofs[i].V)):
                 print(point_to_str(proofs[i].V[j]) + ",")
+                
             print(point_to_str(proofs[i].A) + ",")
             print(point_to_str(proofs[i].S) + ",")
             print(point_to_str(proofs[i].T1) + ",")
             print(point_to_str(proofs[i].T2) + ",")
-            print(bytes_to_str(proofs[i].taux) + ",")
-            print(bytes_to_str(proofs[i].mu) + ",")
+            print(bytes_to_str(int_to_bytes(proofs[i].taux, 32)) + ",")
+            print(bytes_to_str(int_to_bytes(proofs[i].mu, 32)) + ",")
 
             for j in range(0, len(proofs[i].L)):
                 print(point_to_str(proofs[i].L[j]) + ",")
 
             for j in range(0, len(proofs[i].R)):
                 print(point_to_str(proofs[i].R[j]) + ",")
+            
+            print(bytes_to_str(int_to_bytes(proofs[i].a, 32)) + ",")
+            print(bytes_to_str(int_to_bytes(proofs[i].b, 32)) + ",")
 
-            print(bytes_to_str(proofs[i].a) + ",")
-            print(bytes_to_str(proofs[i].b) + ",")
-            print(bytes_to_str(proofs[i].t), end="")
+            for j in range(0, len(proofs[i].t)):
+                print(bytes_to_str(int_to_bytes(proofs[i].t[j], 32)), end="")
+                if (j < (len(proofs[i].t)-1)):
+                    print(",")
 
         print("\n")
         print("power10:")
@@ -642,16 +647,19 @@ class BulletProof:
                 print(str(proofs[i].offset[j]), end="")
 
 #Single Bullet Proofs
-if (True):
+if (False):
     bits = 16   #bits
-    m = 8       #commitments per proof
+    m = 4       #commitments per proof
+    value = getRandom(m, bits, 0)
+    asset_addr = getRandom(m, 160, 0)
+    
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
     #Generate proof(s)
     import time
     t = time.time()
-    bp = BulletProof.Generate([10]*m, [12]*m, [0]*m, N=bits, asset_addr=list(range(0, m)))
+    bp = BulletProof.Generate(value, [12]*m, [0]*m, N=bits, asset_addr=asset_addr)
     t = time.time() - t
     #bp.Print_MEW()
     
@@ -666,10 +674,11 @@ if (True):
 
 #Multiple Bullet Proofs
 if (False):
-    p = 2   #Number of Proofs
+    p = 64  #Number of Proofs
     m = 2   #Commitments per Proof
-    bits = 32
+    bits = 8
     bp = [None]*p
+    asset_addr = getRandom(m, 160, 0)
 
     print()
     print("Generating " + str(p) + " Bullet Proof(s) each with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
@@ -678,7 +687,8 @@ if (False):
     import time
     t = time.time()
     for i in range(0, p):
-        bp[i] = BulletProof.Generate([5]*m, [17]*m, [0]*m, N=bits, asset_addr=0)
+        value = getRandom(m, bits, 0)
+        bp[i] = BulletProof.Generate(value, [17]*m, [0]*m, N=bits, asset_addr=asset_addr)
     t = time.time() - t
     BulletProof.PrintMultiMEW(bp)
     print("\n")
@@ -690,4 +700,54 @@ if (False):
     t = time.time() - t
     print("Verify time: " + str(t) + "s (" + str(t / (p * m)) + "s per commitment)")
     print()
+
+if (False):
+    import time
+    import csv
+    pow10 = 0
+    offset = 0
+    maxlogP = 4
+    maxP = 2**maxlogP
     
+    #Time Trials
+    with open('bulletproof.csv', 'w') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csvwriter.writerow(['bits', 'commitments', 'proofs', 'generation time', 'verify time', 'verify time per proof', 'verify time per commitment'])
+        for logbits in range(2, 7):
+            bits = 2**logbits
+
+            for logm in range(0, 3):
+                m = 2**logm
+                
+                print("Generating " + str(maxP) + " proofs, each with " + str(m) + " commitments, " + str(bits) + " bits wide")
+
+                gen_total_time = 0
+                t = time.time()
+                bp = []
+                for p in range(0, maxP+1):
+                    value = getRandom(m, bits, 0)
+                    asset_addr = getRandom(m, 160, 0)
+                    
+                    
+                    bp += [BulletProof.Generate(value, [pow10]*m, [offset]*m, N=bits, asset_addr=asset_addr)]
+
+                gen_total_time = time.time() - t
+
+                print("Generation time: " + str(gen_total_time) + "s, (" + str (gen_total_time / p) + "s per proof, " + str(gen_total_time / (p * m)) + "s per commitment)")
+                
+                for logp in range(0, maxlogP+1):
+                    p = 2**logp
+                    bp_p = bp[0:p]
+
+                    ver_total_time = 0
+                    t = time.time()
+                    BulletProof.VerifyMulti(bp_p)
+                    ver_total_time = time.time() - t
+                    print ("Verification time for " + str(p) + " proofs: " + str(ver_total_time) + "s total (" + str(ver_total_time / p) + "s per proof, " + str(ver_total_time / (p * m)) + "s per commitment")
+                    csvwriter.writerow([str(bits),
+                                        str(m),
+                                        str(p),
+                                        str(gen_total_time * p / maxP),
+                                        str(ver_total_time),
+                                        str(ver_total_time / p),
+                                        str(ver_total_time / (p*m))])    
