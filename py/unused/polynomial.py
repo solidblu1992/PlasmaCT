@@ -14,24 +14,42 @@ class Polynomial:
             assert isinstance(poly, dict)
             self.poly = poly.copy()
 
-    def create(variable, value):
-        assert isinstance(variable, str)
-        
+    def create(key_values):
         poly = dict()
-        poly["".join(sorted(variable))] = value
+        assert isinstance(key_values, (tuple, list))
+
+        #Only one dictionary entry
+        if len(key_values) == 2:
+            if (isinstance(key_values[0], str)):
+                assert isinstance(key_values[1], int_types)
+                poly["".join(sorted(key_values[0]))] = key_values[1]
+
+                return Polynomial(poly)
+        
+        #Multiple entries
+        assert isinstance(key_values[0], (tuple, list))
+        for i in range(0, len(key_values)):
+            assert len(key_values[i]) == 2
+
+            key = "".join(sorted(key_values[i][0]))
+            if (poly.get(key) == None):
+                poly[key] = key_values[i][1]
+            else:
+                poly[key] += key_values[i][1]
+        
         return Polynomial(poly)
 
     def scalar(s):
-        return Polynomial.create("#", s)
+        return Polynomial.create(("#", s))
 
     def x():
-        return Polynomial.create("x", 1)
+        return Polynomial.create(("x", 1))
 
     def y():
-        return Polynomial.create("y", 1)
+        return Polynomial.create(("y", 1))
 
     def z():
-        return Polynomial.create("z", 1)
+        return Polynomial.create(("z", 1))
 
     def is_empty(self):
         return True if len(self.poly) == 0 else False
@@ -44,6 +62,64 @@ class Polynomial:
                 self.poly.pop(keys[i])
 
         return self
+
+    def evaluate(self, variables, polynomials):
+        if (self.is_empty()):
+            return Polynomial()
+        
+        if not isinstance(variables, (list, tuple)):
+            variables = [variables]
+
+        if not isinstance(polynomials, (list, tuple)):
+            polynomials = [polynomials]
+
+        assert len(variables) == len(polynomials)
+        
+        #Make sure variable names are only single letters (e.g. 'x', or '#')
+        for i in range(0, len(variables)):
+            assert len(variables[i]) == 1
+
+        #Copy self
+        out = Polynomial(self.poly)
+
+        #For each variable, search out's keys
+        for i in range(0, len(variables)):
+            assert isinstance(variables[i], str)
+            assert isinstance(polynomials[i], Polynomial)
+
+            keys = list(out.poly.keys())
+            values = list(out.poly.values())
+            diff_out = Polynomial()
+
+            for j in range(0, len(keys)):
+                hits = 0
+                newkey = ""
+                for k in range(0, len(keys[j])):
+                    if (keys[j][k] == variables[i]):
+                       hits += 1
+                    else:
+                       newkey += keys[j][k]
+
+                if (hits > 0):
+                    #Remove old entry
+                    out.poly.pop(keys[j])
+
+                    #Create new polynomial to replace substitued variables with
+                    if len(newkey) == 0:
+                        newkey = "#"
+
+                    diff_out += Polynomial.create([newkey, values[j]]) * polynomials[i]**hits
+
+            #Add diff_out back into out
+            out += diff_out
+                
+        return out
+
+    def __eq__(self, other):
+        assert isinstance(other, Polynomial)
+        self.clean()
+        other.clean()
+        return self.poly == other.poly
 
     def __add__(self, other):
         if (isinstance(other, int_types)):
@@ -197,11 +273,68 @@ class Polynomial:
         return repr(self.poly)
         
 
-def test():
+def GetPtDoublePolynomial():
     x = Polynomial.x()
     y = Polynomial.y()
+    z = Polynomial.z()
+    W = Polynomial.create(["xx", 3])
+    S = Polynomial.create(["yz", 1])
+    B = x * y * S
+    H = W * W - B * 8
+    S_squared = S * S
+    newx = H * S * 2
+    newy = W * (B * 4 - H) - y * y * S_squared * 8
+    newz = S_squared * S * 8
 
-    xy = x+y
-    return xy
+    return Polynomial.create([('u', 1), ('v', 1), ('w', 1)]) - newx - newy - newz
+
+def GetPtAddPolynomial(B_is_Generator=True):
+    #Variable Point
+    x1 = Polynomial.create(["x", 1])
+    y1 = Polynomial.create(["y", 1])
+    z1 = Polynomial.create(["z", 1])
+
+    #Generator Point
+    if (B_is_Generator):
+        x2 = Polynomial.create(["#", 1])
+        y2 = Polynomial.create(["#", 2])
+        z2 = Polynomial.create(["#", 1])
+    #2nd Variable Point
+    else:
+        x2 = Polynomial.create(["a", 1])
+        y2 = Polynomial.create(["b", 1])
+        z2 = Polynomial.create(["c", 1])
+        
+    U1 = y2 * z1
+    U2 = y1 * z2
+    V1 = x2 * z1
+    V2 = x1 * z2
+
+    #TODO: Doubling Case
+    #TODO: Infinity Case
+
+    U = U1 - U2
+    V = V1 - V2
+    V_squared = V * V
+    V_squared_times_V2 = V_squared * V2
+    V_cubed = V * V_squared
     
-test()
+    W = z1 * z2
+    A = U * U * W - V_cubed - V_squared_times_V2 * 2
+    newx = V * A
+    newy = U * (V_squared_times_V2 - A) - V_cubed * U2
+    newz = V_cubed * W
+
+    return newx + newy + newz
+
+def Test():
+    Cx = GetPtDoublePolynomial()
+    var = ['x', 'y', 'z', 'u', 'v', 'w']
+    equalities = [Polynomial.scalar(1), Polynomial.scalar(2), Polynomial.scalar(1),
+                  Polynomial.scalar(21888242871839275222246405745257275088696311157297823662689037894645226208491),
+                  Polynomial.scalar(21888242871839275222246405745257275088696311157297823662689037894645226208572),
+                  Polynomial.scalar(64)]
+
+    return Cx.evaluate(var, equalities)
+
+field_modulus = 21888242871839275222246405745257275088696311157297823662689037894645226208583
