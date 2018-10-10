@@ -99,7 +99,7 @@ def multiexp(points, scalars, w=5):
 
     return Q
 
-def test_multiexp(N=128):
+def test_multiexp(N=128, w=5):
     #Get random points and scalars
     import time
     t = time.time()
@@ -114,10 +114,10 @@ def test_multiexp(N=128):
 
     #Test multiexp
     t = time.time()
-    Q = multiexp(points, scalars)
+    Q = multiexp(points, scalars, w)
     t = time.time() - t
     print("multiexp done in " + str(t) + "s")
-    Qmultiexp = normalize(Q)
+    Qmultiexp = Q
     tmultiexp = t
 
     #Test naive algorithm
@@ -128,8 +128,9 @@ def test_multiexp(N=128):
 
     t = time.time() - t
     print("naive done in " + str(t) + "s")
-    Qnaive = normalize(Q)
+    Qnaive = Q
     tnaive = t
 
-    print(Qnaive)
-    print(Qmultiexp)
+    assert(eq(Qmultiexp, Qnaive))
+    print("===")
+    print("multiexp/naive = " + str(tmultiexp / tnaive * 100) + "%")
