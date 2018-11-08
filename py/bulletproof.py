@@ -444,7 +444,7 @@ class BulletProof:
     def Verify(self):
         return BulletProof.VerifyMulti([self])
 
-    def Print(self):
+    def Print(self, detailed_commitment=True):
         print()
         print("Bulletproof")
         print("# of commitments: " + str(len(self.total_commit)))
@@ -458,38 +458,40 @@ class BulletProof:
             unit1 = "wTOKEN"
         
         for i in range(0, len(self.total_commit)):
-            print("Commitment " + str(i))
-            print("total_commit: " + bytes_to_str(CompressPoint(self.total_commit[i])))
-            print("power10: " + str(self.power10[i]))
-            print("offset: " + str(self.offset[i]))
+            if (detailed_commitment):
+                print("Commitment " + str(i))
+                
+                print("total_commit: " + bytes_to_str(int_to_bytes(CompressPoint(self.total_commit[i]), 32)))
+                print("power10: " + str(self.power10[i]))
+                print("offset: " + str(self.offset[i]))
 
-            pmin = (self.offset[i]) / 10**18
-            pone = (self.offset[i] + 10**self.power10[i]) / 10**18
-            pmax = (self.offset[i] + (2**self.N-1)*(10**self.power10[i])) / 10**18
-            print("possible range: " + str(pmin) + ", " + str(pone) + ", ..., " + str(pmax) + " " + unit18)
-            if (self.value != None):
-                print("[value: " + str(self.value[i] / 10**18) + " " + unit18 + " or " + str(self.value[i]) + " " + unit1 +"]")
-                print("[bf: " + hex(self.bf[i]) + "]")
-            print()
-        
+                pmin = (self.offset[i]) / 10**18
+                pone = (self.offset[i] + 10**self.power10[i]) / 10**18
+                pmax = (self.offset[i] + (2**self.N-1)*(10**self.power10[i])) / 10**18
+                print("possible range: " + str(pmin) + ", " + str(pone) + ", ..., " + str(pmax) + " " + unit18)
+                if (self.value != None):
+                    print("[value: " + str(self.value[i] / 10**18) + " " + unit18 + " or " + str(self.value[i]) + " " + unit1 +"]")
+                    print("[bf: " + hex(self.bf[i]) + "]")
+                print()
+                
         print("Proof Parameters:")
-        print("Asset_Addr: " + bytes_to_str(self.asset_addr, 20))
+        print("Asset_Addr: " + bytes_to_str(int_to_bytes(self.asset_addr, 20)))
         
         for i in range(0, len(self.V)):
-            print("V[" + str(i) + "]: " + bytes_to_str(CompressPoint(self.V[i])))
+            print("V[" + str(i) + "]: " + bytes_to_str(int_to_bytes(CompressPoint(self.V[i]),32)))
             
-        print("A:    " + bytes_to_str(CompressPoint(self.A)))
-        print("S:    " + bytes_to_str(CompressPoint(self.S)))
-        print("T1:   " + bytes_to_str(CompressPoint(self.T1)))
-        print("T2:   " + bytes_to_str(CompressPoint(self.T2)))
-        print("taux: " + hex(self.taux))
-        print("mu:   " + hex(self.mu))
+        print("A:    " + bytes_to_str(int_to_bytes(CompressPoint(self.A),32)))
+        print("S:    " + bytes_to_str(int_to_bytes(CompressPoint(self.S),32)))
+        print("T1:   " + bytes_to_str(int_to_bytes(CompressPoint(self.T1),32)))
+        print("T2:   " + bytes_to_str(int_to_bytes(CompressPoint(self.T2),32)))
+        print("taux: " + bytes_to_str(int_to_bytes(self.taux, 32)))
+        print("mu:   " + bytes_to_str(int_to_bytes(self.mu, 32)))
 
         for i in range(0, len(self.L)):
-            print("L[" + str(i) + "]: " + bytes_to_str(CompressPoint(self.L[i])))
+            print("L[" + str(i) + "]: " + bytes_to_str(int_to_bytes(CompressPoint(self.L[i]),32)))
 
         for i in range(0, len(self.R)):
-            print("R[" + str(i) + "]: " + bytes_to_str(CompressPoint(self.R[i])))
+            print("R[" + str(i) + "]: " + bytes_to_str(int_to_bytes(CompressPoint(self.R[i]),32)))
 
         print("a:    " + hex(self.a))
         print("b:    " + hex(self.b))
@@ -593,7 +595,7 @@ class BulletProof:
                 print(str(proofs[i].offset[j]), end="")
 
 #Single Bullet Proofs
-if (True):
+if (False):
     bits = 16   #bits
     m = 1       #commitments per proof
     print()
