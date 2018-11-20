@@ -8,9 +8,6 @@ Ncurve = curve_order
 Pcurve = field_modulus
 counters = [0]*32
 
-useShamir = True    #Flag True to use Shamir's Trick to compute (a*A + b*B) effectively
-useWindowed = True  #Flag True to use windowed EC Multiplication
-
 def sqrt(x):
     if ((type(x) != FQ) and (type(x) != FQ2)):
         x = FQ(x)
@@ -106,7 +103,7 @@ def bytes_to_point(b):
     return P
 
 def str_to_bytes(msg):
-	return bytes(msg, 'UTF-8')
+    return bytes(msg, 'UTF-8')
 
 def point_to_str(p):
     if (type(p) != tuple):
@@ -177,7 +174,7 @@ def get_xy2(x_1, x_2, x_3):
 def point1_from_t(t):
     if (type(t) != FQ):
         t = FQ(t)
-        
+    
     sqrt3 = sqrt(FQ(-3))
     F0 = ((sqrt3-1)/2, sqrt(1+b), FQ(1))
 
@@ -258,14 +255,14 @@ def hash_int_to_point2(addr):
     return point2_from_t(t)
 
 def hash_str_to_point1(s):
-    hasher = sha3.keccak_256(bytes(s, "UTF-8") + b"G1")
+    hasher = sha3.keccak_256(bytes(s + "G1", "UTF-8"))
     x = bytes_to_int(hasher.digest())
     return point1_from_t(x)
 
 def hash_str_to_point2(s):
-    hasher = sha3.keccak_256(bytes(s, "UTF-8") + b"G2_0")
+    hasher = sha3.keccak_256(bytes(s + "G2_0", "UTF-8"))
     c_0 = bytes_to_int(hasher.digest())
-    hasher = sha3.keccak_256(bytes(s, "UTF-8") + b"G2_1")
+    hasher = sha3.keccak_256(bytes(s + "G2_1", "UTF-8"))
     c_1 = bytes_to_int(hasher.digest())
     t = FQ2([c_0, c_1])
     return point2_from_t(t)
@@ -426,213 +423,6 @@ def ExpandCompressTest():
             #print("cpoint = " + hex(cpoint))
         else:
             print("Success!")
-
-#Elliptic Curve Multiplication
-if (useWindowed):
-    def precompute_points(P, wBits=5):        
-        #Calculate Precompiled Points: [1, 3, 5, ...]*P
-        wPowOver4 = 1 << (wBits-2)
-        P_pre = [None]*wPowOver4
-        P_pre[0] = P
-        P2 = double(P)
-        
-        for i in range(1, len(P_pre)):
-            P_pre[i] = add(P_pre[i-1], P2)
-
-        return P_pre
-    
-    G_pre = precompute_points(G)
-    H_pre = precompute_points(H)
-    G2_pre = precompute_points(G2)
-    
-    def multiply(P, s, wBits=5):
-        wPow = (1 << wBits)
-        wPowOver2 = wPow // 2
-
-        if (type(P[0]) == FQ):
-            Q = NullPoint
-                    
-            if (eq(P, G)):
-                P_pre = G_pre
-            elif (eq(P, H)):
-                P_pre = H_pre
-            else:
-                P_pre = precompute_points(P, wBits)
-        else:
-            Q = NullPoint2
-            
-            if (eq(P, G2)):
-                P_pre = G2_pre
-            else:
-                P_pre = precompute_points(P, wBits)
-        
-        #Get NAF digits
-        dj = []
-        i = 0
-        while (s > 0):
-            if (s % 2) == 1:
-                d = s % wPow
-                if (d > wPowOver2):
-                    d = d - wPow
-                    
-                s -= d
-                
-                dj += [d]
-            else:
-                dj += [0]
-
-            s = s // 2
-            i = i + 1
-
-        for j in reversed(range(0, i)):
-            Q = double(Q)
-            if (dj[j] > 0):
-                index = (dj[j] - 1) // 2
-                Q = add(Q, P_pre[index])
-            elif (dj[j] < 0):
-                index = (-dj[j] - 1) // 2
-                Q = add(Q, neg(P_pre[index]))
-            
-        return Q
-
-    def Multiply_TimeTrials(N=300):
-        import time
-        r = getRandom(N)
-        t0 = time.time()
-        for i in range(0, len(r)):
-            P = multiply_naive(G, r[i])
-        t0 = time.time() - t0
-        print("naive() => " + str(t0) + "s")
-
-        t1 = time.time()
-        for i in range(0, len(r)):
-            P = multiply(G, r[i])
-        t1 = time.time() - t1
-        print("windowed_pre() => " + str(t1) + "s")
-        print("% => " + str((t0-t1)*100/t1))
-
-        Gi = hash_point_to_point(H)
-        t2 = time.time()
-        for i in range(0, len(r)):
-            P = multiply(Gi, r[i])
-        t2 = time.time() - t2
-        print("windowed() => " + str(t2) + "s")
-        print("% => " + str((t0-t2)*100/t2))
-else:
-    def multiply(P, s):
-        return multiply_naive(P, s)
-
-#shamir2 and shamir 3 are variations on multiply() using Shamir's Trick - Multiexponentiation
-def find_msb(s):
-    if (s == 0):
-        return 0
-    
-    x = (1 << 255)
-    while (s & x == 0):
-        x = x >> 1
-
-    return x
-
-if (useShamir):
-    def shamir(P, s):        
-        b = len(P)
-        assert(b == len(s))
-
-        if (b == 1):
-            return multiply(P[0], s[0])
-
-        points = [NullPoint]*(2**b-1)
-
-        bit = 1
-        for i in range(0, b):
-            for j in range(1, len(points)+1):
-                if ((j & bit) > 0):
-                    points[j-1] = add(points[j-1], P[i])
-
-            bit = bit << 1
-
-        x = find_msb(max(s))
-        Pout = NullPoint
-
-        while (x > 0):
-            Pout = double(Pout)
-
-            i = 0
-            bit = 1
-            for j in range(0, b):
-                if ((x & s[j]) > 0):
-                    i = i + bit
-
-                bit = bit << 1
-
-            if (i > 0):
-                Pout = add(Pout, points[i-1])
-                    
-            x = x >> 1
-
-        return Pout
-
-    def shamir_batch(P, s, batch_size=6):
-        if (batch_size == 0):
-            return shamir(P, s)
-
-        out = NullPoint
-        
-        #Use shamir in batches
-        #Then do batch of remainder
-        for i in range(0, len(s), batch_size):
-            ip = i+batch_size
-            if (ip > len(s)):
-                ip = len(s)
-
-            out = add(out, shamir(P[i:ip], s[i:ip]))
-
-        return out
-
-    def Shamir_TimeTrials(N=100, n=2):
-        import time
-
-        #Pick random Numbers
-        r = []
-        for i in range(0, N):
-            r = r + [getRandom(n)]
-
-        #Get generator points
-        Gi = [G] + [NullPoint]*(n-1)
-        for j in range(1, n):
-                Gi[j] = hash_to_point(Gi[j-1])
-
-        #Test naive method
-        ms = time.time()
-        for i in range(0, N):
-            P = multiply(Gi[0], r[i][0])
-            for j in range(1, n):
-                P = add(P, multiply(Gi[j], r[i][j]))
-                
-        ms_end = time.time()
-        t0 = ms_end-ms
-        print("naive() => " + str(t0) + "s")
-
-        #Test Shamir's trick
-        ms = time.time()
-        for i in range(0, N):
-            P = shamir(Gi, r[i])
-        ms_end = time.time()
-        t1 = ms_end-ms
-        print("shamir() => " + str(t1) + "s")
-        print("% => " + str((t0-t1)*100/t0))
-else:
-    def shamir(P, s):
-        if (len(P) == 1):
-            return multiply(P[0], s[0])
-        
-        assert(len(P) == len(s))
-
-        Pout = multiply(P[0], s[0])
-        for i in range(1, len(P)):
-            Pout = add(Pout, multiply(P[i], s[i]))
-            
-        return Pout
 
 def sNeg(a):
     return (Ncurve - (a % Ncurve)) % Ncurve

@@ -1,4 +1,5 @@
 from util import *
+from optimized_curve_algorithms import *
 
 Gi = []
 Hi = []
@@ -13,14 +14,14 @@ def GenBasePoints(N=128):
     return (Gi, Hi)
 	
 def SerializeBasePoints():
-	print("Gi:")
-	for i in range(0, len(Gi)):
-		print(point_to_str(Gi[i]) + ",")
+    print("Gi:")
+    for i in range(0, len(Gi)):
+        print(point_to_str(Gi[i]) + ",")
 	
-	print()
-	print("Hi:")
-	for i in range(0, len(Hi)):
-		print(point_to_str(Hi[i]) + ",")
+    print()
+    print("Hi:")
+    for i in range(0, len(Hi)):
+        print(point_to_str(Hi[i]) + ",")
 
 def CheckBasePoints():
     for i in range(0, len(Gi)):
@@ -34,32 +35,18 @@ def CheckBasePoints():
             print("Hi[" + str(i) + "] passes!")
         else:
             print("Hi[" + str(i) + "] fails!")		
+   
+def pvExpCustom(A, B, a, b):
+    assert(len(a) == len(b))
+    assert(len(A) >= len(a))
+    assert(len(B) >= len(b))
 
-if (useShamir):    
-    def pvExpCustom(A, B, a, b):
-        assert(len(a) == len(b))
-        assert(len(A) >= len(a))
-        assert(len(B) >= len(b))
+    #return shamir_batch(A+B, a+b)
+    return multiexp(A+B, a+b)
 
-        return shamir_batch(A+B, a+b)
-
-    def pvExp(a, b):
-        return pvExpCustom(Gi[:len(a)], Hi[:len(b)], a, b)
-else:
-    def pvExpCustom(A, B, a, b):
-        assert(len(a) == len(b))
-        assert(len(A) >= len(a))
-        assert(len(B) >= len(b))
-
-        out = NullPoint
-        for i in range(0, len(a)):
-            out = add(out, multiply(A[i], a[i]))
-            out = add(out, multiply(B[i], b[i]))
-
-        return out
-
-    def pvExp(a, b):
-        return pvExpCustom(Gi, Hi, a, b)
+def pvExp(a, b):
+    #return pvExpCustom(Gi[:len(a)], Hi[:len(b)], a, b)
+    return multiexp(Gi[:len(a)]+Hi[:len(b)], a+b)
 
 def pvAdd(A, B):
     assert(len(A) == len(B))

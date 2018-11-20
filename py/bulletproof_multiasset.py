@@ -1,3 +1,4 @@
+#cython: language_level=3, boundscheck=False
 from bulletproofutil import *
 from TokenConstants import *
 
@@ -673,10 +674,10 @@ if (False):
     print("Verify time: " + str(t) + "s (" + str(t / m) + "s per commitment)")
 
 #Multiple Bullet Proofs
-if (False):
-    p = 64  #Number of Proofs
+if (True):
+    p = 2   #Number of Proofs
     m = 2   #Commitments per Proof
-    bits = 8
+    bits = 64
     bp = [None]*p
     asset_addr = getRandom(m, 160, 0)
 
