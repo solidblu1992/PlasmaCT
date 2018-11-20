@@ -1,4 +1,3 @@
-#cython: language_level=3, boundscheck=False
 from bulletproofutil import *
 from TokenConstants import *
 
@@ -453,9 +452,7 @@ class BulletProof:
 
         Check2 = shamir([G, H], [sNeg(z1), z3])
         Check2 = add(Check2, Z0)
-
-        for i in range(0, maxMN):
-            Check2 = add(Check2, shamir([Gi[i], Hi[i]], [z4[i], z5[i]]))
+        Check2 = add(Check2, pvExp(z4, z5))
 
         #More Debug Printing
         if (False):
