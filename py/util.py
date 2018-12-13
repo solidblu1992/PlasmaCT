@@ -1,5 +1,5 @@
 #from bn128_curve import *
-from optimized_curve import *
+from optimized_curve_algorithms import *
 from optimized_curve_cofactor import *
 import sha3
 
