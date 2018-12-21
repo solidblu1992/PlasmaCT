@@ -618,9 +618,9 @@ if (True):
 
 #Multiple Bullet Proofs
 if (False):
-    p = 2   #Number of Proofs
-    m = 2   #Commitments per Proof
-    bits = 32
+    p = 4   #Number of Proofs
+    m = 1   #Commitments per Proof
+    bits = 64
     bp = [None]*p
 
     print()

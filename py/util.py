@@ -1,6 +1,7 @@
 #from bn128_curve import *
 from optimized_curve_algorithms import *
 from optimized_curve_cofactor import *
+from optimized_curve_algorithms import *
 import sha3
 
 #alt_bn_128 curve parameters
