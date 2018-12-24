@@ -284,6 +284,34 @@ def hash_point_to_point1(p):
     x = bytes_to_int(hasher.digest())    
     return point1_from_t(x)
 
+def hash_point_to_point1_old(p):
+    p = normalize(p)
+    hasher = sha3.keccak_256()
+
+    if (type(p[0]) == FQ):
+        hasher.update(int_to_bytes(p[0].n, 32))
+        hasher.update(int_to_bytes(p[1].n, 32))
+    else:
+        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
+        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
+        
+    x = FQ(bytes_to_int(hasher.digest()))
+    a = (Pcurve + 1) // 4
+
+    onCurve = False
+    while (not onCurve):
+        y2 = x**3 + b
+        y = y2**a
+
+        onCurve = (y**2 == y2)
+
+        if (not onCurve):
+            x += 1
+    
+    return (x, y, FQ.one())
+
 def hash_point_to_point2(p):
     p = normalize(p)
 
