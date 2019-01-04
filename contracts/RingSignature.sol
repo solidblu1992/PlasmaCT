@@ -19,6 +19,16 @@ library RingSignature {
 		G1Point.Data[] key_images;
 	}
 	
+	function GetM(Data memory sig) public pure returns (uint) {
+		return sig.key_images.length;
+	}
+	
+	function GetN(Data memory sig) public pure returns (uint) {
+		if (sig.pub_keys.length % sig.key_images.length != 0) return 0;
+		
+		return (sig.pub_keys.length / sig.key_images.length);
+	}
+	
 	function IsValid(Data memory sig) public view returns (bool) {
 		//Check inputs
 	    if (sig.pub_keys.length == 0) return false;

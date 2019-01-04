@@ -11,17 +11,39 @@ library G1Point {
 	uint constant private N = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
 	uint constant private P = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47;
 	
+	///MSB used for point compression and expansion
+	uint constant private sign_flag = 0x8000000000000000000000000000000000000000000000000000000000000000;
+	
+	//alt_bn_128 curve order
+	function GetN() public pure returns (uint) {
+	    return N;
+	}
+	
+	//alt_bn_128 field modulus
+	function GetP() public pure returns (uint) {
+	    return P;
+	}
+	
+	//alt_bn_128 Generator Point
 	function GetG1() public pure returns (Data memory G1) {
 	    G1 = Data(1, 2);
 	}
 	
+	//2nd Generator point where gamma is unknown for the equation: H = gammma*G1
 	function GetH() public pure returns (Data memory H) {
 	    //H = HashToPoint(GetG1());
 	    H = Data(   0x277a420332215ead37ba61fee84f0d216a345e762af8efd15453697170b3cdc5,
 	                0x1b312cd37d4ad474fc299c9689fc0f347a2ec2b5b474a41b343142ee5fdd097a  );
 	}
 	
+	//Special Generator Points used for Bullet Proofs
+	function GetGi(uint i) public view returns (Data memory Gi) {
+	    return FromX(uint(keccak256(abi.encodePacked("Gi", i))));
+	}
 	
+	function GetHi(uint i) public view returns (Data memory Gi) {
+	    return FromX(uint(keccak256(abi.encodePacked("Hi", i))));
+	}
 	
 	///Base Functions
 	//Get G1Point from desired x coordinate (increment x if not on curve)
@@ -114,6 +136,41 @@ library G1Point {
 	    C = Data(data[0], data[1]);
 	}
 
+    ///Point Compression
+    function CompressPoint(Data memory A) public pure returns (uint compressed_point) {
+        compressed_point = A.x;
+        
+        if (A.y & 1 != 0) {
+            compressed_point |= sign_flag;
+        }
+    }
+    
+    function ExpandPoint(uint compressed_point) public view returns (Data memory A) {
+        //Check bit flag
+        bool odd = (compressed_point & sign_flag == 0);
+        
+        //Remove bit flag
+        if (odd) {
+            compressed_point &= ~sign_flag;
+        }
+        
+        //Get y-coord
+        A = FromX(compressed_point);
+        
+        //Check sign, correct if necessary
+        if (odd) {
+            if (A.y & 1 == 0) {
+                A.y = P - A.y;
+            }
+        }
+        else {
+            if (A.y & 1 == 1) {
+                A.y = P - A.y;
+            }
+        }
+    }
+
+    ///Hash Functions
     //Calculates the keccak256 hash of a G1 Point
     function HashToScalar(Data memory A) public pure returns (uint) {
         return uint(keccak256(abi.encodePacked(A.x, A.y)));
@@ -124,7 +181,10 @@ library G1Point {
         return FromX(HashToScalar(A));
     }
 
-
+	//Uses the keccak256 hash of an address to generate a new point
+	function HashAddressToPoint(address addr) public view returns (Data memory) {
+		return FromX(uint(keccak256(abi.encodePacked(addr))));
+	}
 
     ///Helper functions to save calls to library
     //Saves a call to GetG1() or GetH()
