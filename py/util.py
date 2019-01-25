@@ -467,12 +467,8 @@ def sMul(a, b, modulus=Ncurve):
 def sSq(a):
     return sMul(a, a)
 
-def sPow(a, p):
-    out = a
-    for i in range(1, p):
-         out = sMul(out, a)
-         
-    return out
+def sPow(a, p, modulus=Ncurve):     
+    return pow(a, p, modulus)
 
 def sInv(a, modulus=Ncurve):
     a = a % modulus
