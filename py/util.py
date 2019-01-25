@@ -461,8 +461,8 @@ def sAdd(a, b):
 def sSub(a, b):
     return sAdd(a, sNeg(b))
 
-def sMul(a, b):
-    return (a * b) % Ncurve
+def sMul(a, b, modulus=Ncurve):
+    return (a * b) % modulus
 
 def sSq(a):
     return sMul(a, a)
@@ -474,13 +474,13 @@ def sPow(a, p):
          
     return out
 
-def sInv(a):
-    a = a % Ncurve
+def sInv(a, modulus=Ncurve):
+    a = a % modulus
     assert(a > 0)
 
     t1 = 0
     t2 = 1
-    r1 = Ncurve
+    r1 = modulus
     r2 = a
     q = 0
     while (r2 != 0):
@@ -488,13 +488,13 @@ def sInv(a):
         (t1, t2, r1, r2) = (t2, t1 - q*t2, r2, r1 - q*r2)
 
     if (t1 < 0):
-        t1 = t1 % Ncurve
+        t1 = t1 % modulus
 
-    assert(sMul(a, t1) == 1)
+    assert(sMul(a, t1, modulus) == 1)
     return t1
 
-def sDiv(a, b):
-    return sMul(a, sInv(b))
+def sDiv(a, b, modulus=Ncurve):
+    return sMul(a, sInv(b, modulus), modulus)
 
 def vPow(x, N):
     if (x == 0):
