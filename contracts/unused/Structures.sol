@@ -10,7 +10,8 @@ contract Structures {
 	}
 	
 	struct SchnorrSignature {
-		G1Point R;
+		string msg;
+		G1Point.Data R;
 		uint s;
 	}
 	
