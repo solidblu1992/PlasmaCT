@@ -15,39 +15,39 @@ library G1Point {
 	uint constant private sign_flag = 0x8000000000000000000000000000000000000000000000000000000000000000;
 	
 	//alt_bn_128 curve order
-	function GetN() public pure returns (uint) {
+	function GetN() internal pure returns (uint) {
 	    return N;
 	}
 	
 	//alt_bn_128 field modulus
-	function GetP() public pure returns (uint) {
+	function GetP() internal pure returns (uint) {
 	    return P;
 	}
 	
 	//alt_bn_128 Generator Point
-	function GetG1() public pure returns (Data memory G1) {
+	function GetG1() internal pure returns (Data memory G1) {
 	    G1 = Data(1, 2);
 	}
 	
 	//2nd Generator point where gamma is unknown for the equation: H = gammma*G1
-	function GetH() public pure returns (Data memory H) {
+	function GetH() internal pure returns (Data memory H) {
 	    //H = HashToPoint(GetG1());
 	    H = Data(   0x277a420332215ead37ba61fee84f0d216a345e762af8efd15453697170b3cdc5,
 	                0x1b312cd37d4ad474fc299c9689fc0f347a2ec2b5b474a41b343142ee5fdd097a  );
 	}
 	
 	//Special Generator Points used for Bullet Proofs
-	function GetGi(uint i) public view returns (Data memory Gi) {
+	function GetGi(uint i) internal view returns (Data memory Gi) {
 	    return FromX(uint(keccak256(abi.encodePacked("Gi", i))));
 	}
 	
-	function GetHi(uint i) public view returns (Data memory Gi) {
+	function GetHi(uint i) internal view returns (Data memory Gi) {
 	    return FromX(uint(keccak256(abi.encodePacked("Hi", i))));
 	}
 	
 	///Base Functions
 	//Get G1Point from desired x coordinate (increment x if not on curve)
-	function FromX(uint x) public view returns (Data memory) {
+	function FromX(uint x) internal view returns (Data memory) {
 	    uint p = P;
 	    x = x % p;
 	    
@@ -80,7 +80,7 @@ library G1Point {
 	}
 	
 	//Check to see if G1Point is on curve
-	function IsOnCurve(Data memory point) public pure returns (bool) {
+	function IsOnCurve(Data memory point) internal pure returns (bool) {
 	    //(y^2 == x^3 + 3) % p
 	    uint p = P;
 	    uint left = mulmod(point.y, point.y, p);
@@ -90,17 +90,17 @@ library G1Point {
 	}
 	
 	//Check to see if both G1Points are equal
-	function Equals(Data memory A, Data memory B) public pure returns (bool) {
+	function Equals(Data memory A, Data memory B) internal pure returns (bool) {
 	    return ((A.x == B.x) && (A.y == B.y));
 	}
 	
 	//Negates the G1 Point
-	function Negate(Data memory point) public pure returns (Data memory) {
+	function Negate(Data memory point) internal pure returns (Data memory) {
 	    return Data(point.x, P - (point.y % P));
 	}
 	
 	//Calculates G1 Point addition using precompile
-	function Add(Data memory A, Data memory B) public view returns (Data memory C)	{
+	function Add(Data memory A, Data memory B) internal view returns (Data memory C)	{
 	    uint[] memory data = new uint[](4);
 	    data[0] = A.x;
 	    data[1] = A.y;
@@ -119,7 +119,7 @@ library G1Point {
 	}
 	
 	//Calculates G1 Point scalar multiplication using precompile
-	function Multiply(Data memory A, uint s) public view returns (Data memory C) {
+	function Multiply(Data memory A, uint s) internal view returns (Data memory C) {
 	    uint[] memory data = new uint[](3);
 	    data[0] = A.x;
 	    data[1] = A.y;
@@ -137,7 +137,7 @@ library G1Point {
 	}
 
     ///Point Compression
-    function CompressPoint(Data memory A) public pure returns (uint compressed_point) {
+    function CompressPoint(Data memory A) internal pure returns (uint compressed_point) {
         compressed_point = A.x;
         
         if (A.y & 1 != 0) {
@@ -145,7 +145,7 @@ library G1Point {
         }
     }
     
-    function ExpandPoint(uint compressed_point) public view returns (Data memory A) {
+    function ExpandPoint(uint compressed_point) internal view returns (Data memory A) {
         //Check bit flag
         bool odd = (compressed_point & sign_flag == 0);
         
@@ -172,42 +172,42 @@ library G1Point {
 
     ///Hash Functions
     //Calculates the keccak256 hash of a G1 Point
-    function HashToScalar(Data memory A) public pure returns (uint) {
+    function HashToScalar(Data memory A) internal pure returns (uint) {
         return uint(keccak256(abi.encodePacked(A.x, A.y)));
     }
     
     //Uses the keccak256 hash of a G1 Point to generate a new point (e.g. H = HashToPoint(G1))
-    function HashToPoint(Data memory A) public view returns (Data memory) {
+    function HashToPoint(Data memory A) internal view returns (Data memory) {
         return FromX(HashToScalar(A));
     }
 
 	//Uses the keccak256 hash of an address to generate a new point
-	function HashAddressToPoint(address addr) public view returns (Data memory) {
+	function HashAddressToPoint(address addr) internal view returns (Data memory) {
 		return FromX(uint(keccak256(abi.encodePacked(addr))));
 	}
 
     ///Helper functions to save calls to library
     //Saves a call to GetG1() or GetH()
-    function MultiplyG1(uint s) public view returns (Data memory) {
+    function MultiplyG1(uint s) internal view returns (Data memory) {
         return Multiply(GetG1(), s);
     } 
     
-    function MultiplyH(uint s) public view returns (Data memory) {
+    function MultiplyH(uint s) internal view returns (Data memory) {
         return Multiply(GetH(), s);
     }
     
     //Calculates a*A + b*B
-    function Shamir(Data memory A, Data memory B, uint a, uint b) public view returns (Data memory) {
+    function Shamir(Data memory A, Data memory B, uint a, uint b) internal view returns (Data memory) {
         return Add(Multiply(A, a), Multiply(B, b));
     }
     
     //Calculates g*G1 + h*H
-    function CalcPedersen(uint g, uint h) public view returns (Data memory) {
+    function CalcPedersen(uint g, uint h) internal view returns (Data memory) {
         return Add(Multiply(GetG1(), g), Multiply(GetH(), h));
     }
 
     //Calculates a*A + b*B + c*C + ...
-    function MultiExp(Data[] memory points, uint[] memory s) public view returns (Data memory point) {
+    function MultiExp(Data[] memory points, uint[] memory s) internal view returns (Data memory point) {
         require(points.length > 0);
         require(points.length == s.length);
         
@@ -219,7 +219,7 @@ library G1Point {
     }
 
     //Given an array of points (A, B, C, D, ...), double and add points (e.g. ((A*2 + B)*2 + C)*2 + D ...)
-    function DoubleAndAdd(Data[] memory points) public view returns (Data memory point) {
+    function DoubleAndAdd(Data[] memory points) internal view returns (Data memory point) {
         point = points[0];
         for (uint i = 1; i < points.length; i++) {
             point = Add(point, point);      //Double

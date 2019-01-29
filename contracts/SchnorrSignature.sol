@@ -14,7 +14,7 @@ library SchnorrSignature {
 		uint s;
 	}
 	
-	function Recover(Data memory sig) public view returns (G1Point.Data memory P) {
+	function Recover(Data memory sig) internal view returns (G1Point.Data memory P) {
 		//Do input checks
 		assert(sig.R.IsOnCurve());
 		
@@ -24,7 +24,7 @@ library SchnorrSignature {
 		P = sig.R.Add(G1Point.MultiplyG1(sig.s).Negate()).Multiply(e_inv);
 	}
 	
-	function RecoverMultiple(Data[] memory sig) public view returns(G1Point.Data[] memory P) {
+	function RecoverMultiple(Data[] memory sig) internal view returns(G1Point.Data[] memory P) {
 		//Trivial Cases
 		if (sig.length == 0) {
 			P = new G1Point.Data[](0);
@@ -57,7 +57,7 @@ library SchnorrSignature {
 		}
 	}
 	
-	function IsValid(Data memory sig, G1Point.Data memory P) public view returns (bool) {
+	function IsValid(Data memory sig, G1Point.Data memory P) internal view returns (bool) {
 	    //Do input checks
 		if (!P.IsOnCurve()) return false;
 		
@@ -65,7 +65,7 @@ library SchnorrSignature {
 		return P.Equals(Recover(sig));
 	}
 	
-	function AreValid(Data[] memory sig, G1Point.Data[] memory P) public view returns (bool) {
+	function AreValid(Data[] memory sig, G1Point.Data[] memory P) internal view returns (bool) {
 		//Do input checks
 		if (sig.length == 0) return false;
 		if (sig.length != P.length) return false;
@@ -120,7 +120,7 @@ library SchnorrSignature {
 	}
 	
 	function GetHash(Data memory sig)
-		public pure returns (bytes32 hash)
+		internal pure returns (bytes32 hash)
 	{
 		//Calculate Hash
 		return keccak256(abi.encodePacked(sig.msg, sig.R.x, sig.R.y, sig.s));

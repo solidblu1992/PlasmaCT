@@ -3,10 +3,10 @@ pragma solidity ^0.5.0;
 import "./Scalar.sol";
 
 library Vector {
-    uint public constant modulo = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47;
+    uint private constant modulo = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47;
     
     //Create vector = v^0, v^1, v^2, ..., v^(lenght-1)
-	function Powers(uint v, uint length) public pure returns (uint[] memory vec) {
+	function Powers(uint v, uint length) internal pure returns (uint[] memory vec) {
 	    require(length > 0);
 	    
 	    vec = new uint[](length);
@@ -18,14 +18,14 @@ library Vector {
     }
     
     //Get sum of vector
-    function Sum(uint[] memory vec) public pure returns (uint sum) {
+    function Sum(uint[] memory vec) internal pure returns (uint sum) {
         for (uint i = 0; i < vec.length; i++) {
             sum = addmod(sum, vec[i], modulo);
         }
     }
     
     //Get inner product
-    function InnerProduct(uint[] memory a, uint[] memory b) public pure returns (uint[] memory c) {
+    function InnerProduct(uint[] memory a, uint[] memory b) internal pure returns (uint[] memory c) {
         require(a.length == b.length);
         c = new uint[](a.length);
         
@@ -35,7 +35,7 @@ library Vector {
     }
     
     //Get dot product
-    function Dot(uint[] memory a, uint[] memory b) public pure returns (uint dot) {
+    function Dot(uint[] memory a, uint[] memory b) internal pure returns (uint dot) {
         require(a.length == b.length);
         
         for (uint i = 0; i < a.length; i++) {
@@ -49,7 +49,7 @@ library Vector {
     }
     
     //Get vector slice
-    function Slice(uint[] memory vec, uint start, uint length) public pure returns (uint[] memory slice) {
+    function Slice(uint[] memory vec, uint start, uint length) internal pure returns (uint[] memory slice) {
         require(start < vec.length);
         require((start + length) < vec.length);
         
@@ -60,7 +60,7 @@ library Vector {
     }
     
     //Calculate inverse of each scalar in vector
-    function Inverse(uint[] memory a) public pure returns (uint[] memory out) {
+    function Inverse(uint[] memory a) internal pure returns (uint[] memory out) {
         uint[] memory intermediates = new uint[](a.length);
         out = new uint[](a.length);
         

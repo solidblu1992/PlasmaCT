@@ -19,17 +19,17 @@ library RingSignature {
 		G1Point.Data[] key_images;
 	}
 	
-	function GetM(Data memory sig) public pure returns (uint) {
+	function GetM(Data memory sig) internal pure returns (uint) {
 		return sig.key_images.length;
 	}
 	
-	function GetN(Data memory sig) public pure returns (uint) {
+	function GetN(Data memory sig) internal pure returns (uint) {
 		if (sig.pub_keys.length % sig.key_images.length != 0) return 0;
 		
 		return (sig.pub_keys.length / sig.key_images.length);
 	}
 	
-	function IsValid(Data memory sig) public view returns (bool) {
+	function IsValid(Data memory sig) internal view returns (bool) {
 		//Check inputs
 	    if (sig.pub_keys.length == 0) return false;
 	    
@@ -94,7 +94,7 @@ library RingSignature {
 	}
 	
 	function GetHash(Data memory sig)
-		public pure returns (bytes32 hash)
+		internal pure returns (bytes32 hash)
 	{
 	    //Serialize non-string data
 		uint[] memory serialized = new uint[](1 /*c0*/ + sig.s.length + 2*(sig.pub_keys.length + sig.key_images.length));

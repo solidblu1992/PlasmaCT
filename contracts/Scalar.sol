@@ -1,22 +1,22 @@
 pragma solidity ^0.5.0;
 
 library Scalar {
-    uint public constant modulo = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
+    uint private constant modulo = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
 
-    function Negate(uint a) public pure returns (uint) {
+    function Negate(uint a) internal pure returns (uint) {
         if (a >= modulo) a = a % modulo;
         return (modulo - a);
     }
 
-    function Add(uint a, uint b) public pure returns (uint) {
+    function Add(uint a, uint b) internal pure returns (uint) {
         return addmod(a, b, modulo);
     }
     
-    function Multiply(uint a, uint b) public pure returns (uint) {
+    function Multiply(uint a, uint b) internal pure returns (uint) {
         return mulmod(a, b, modulo);
     }
 
-    function Power(uint a, uint p) public pure returns (uint power) {
+    function Power(uint a, uint p) internal pure returns (uint power) {
         //Trivial Case
         if (p == 0) {
             power = 1;
@@ -53,7 +53,7 @@ library Scalar {
 	///Note: This function borrowed from androlo/standard-contracts/ECCMath.sol, modified slightly
 	//Original Author: Andreas Olofsson (androlo1980@gmail.com)
 	//Original Source: https://github.com/androlo/standard-contracts/blob/master/contracts/src/crypto/ECCMath.sol
-	function Inverse(uint a) public pure returns (uint) {
+	function Inverse(uint a) internal pure returns (uint) {
         if (a == 0 || a == modulo) revert();
         if (a > modulo) a = a % modulo;
         

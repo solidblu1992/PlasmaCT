@@ -28,7 +28,7 @@ library BulletProof {
 		address asset_addr;
 	}
 	
-	function GetAssetH(address asset_addr) public view returns (G1Point.Data memory) {
+	function GetAssetH(address asset_addr) internal view returns (G1Point.Data memory) {
 		//Get H point for asset
 		if (asset_addr == address(0)) {
 			//ETH
@@ -76,7 +76,7 @@ library BulletProof {
 	    uint[] temp_vec;
 	}
 		
-	function IsValid(Data memory proof) public view returns (bool) {
+	function IsValid(Data memory proof) internal view returns (bool) {
 	    //Group memory variables together to reduce stack depth
 	    BPMemory memory mem;
 	    uint i;
@@ -199,7 +199,7 @@ library BulletProof {
 	}
 	
 	function GetHash(Data memory proof)
-		public pure returns (bytes32 hash)
+		internal pure returns (bytes32 hash)
 	{
 	    //Serialize non-string data
 		uint[] memory serialized = new uint[](7 + 2*(4 + proof.V.length + proof.L.length + proof.R.length));
