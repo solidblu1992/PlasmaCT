@@ -9,6 +9,11 @@ contract Structures {
 	    uint y;
 	}
 	
+	struct SchnorrSignature {
+		G1Point R;
+		uint s;
+	}
+	
 	struct RingSignature {
 		//Inputs
 		G1Point[] input_pub_keys;
@@ -44,6 +49,13 @@ contract Structures {
 		
 		//Bits per commitment
 		uint32 N;
+	}
+	
+	struct MimbleTX {
+		G1Point[] inputs;
+		G1Point[] outputs;
+		BulletProof[] range_proofs;
+		SchnorrSignature[] kernels;
 	}
 	
 	function IsG1PointValid(G1Point memory point) public pure returns (bool) {
