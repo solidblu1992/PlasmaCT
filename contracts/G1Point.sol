@@ -147,7 +147,7 @@ library G1Point {
     
     function ExpandPoint(uint compressed_point) internal view returns (Data memory A) {
         //Check bit flag
-        bool odd = (compressed_point & sign_flag == 0);
+        bool odd = (compressed_point & sign_flag != 0);
         
         //Remove bit flag
         if (odd) {
@@ -224,6 +224,39 @@ library G1Point {
         for (uint i = 1; i < points.length; i++) {
             point = Add(point, point);      //Double
             point = Add(point, points[i]);  //Add
+        }
+    }
+    
+    //Serializes G1Point into bytes
+    function Serialize(Data memory point, bool compress) internal pure returns (bytes memory b) {
+        if (compress) {
+            //Pack compressed point
+            b = abi.encodePacked(CompressPoint(point));
+        }
+        else {
+            //Pack uncompressed point
+            b = abi.encodePacked(point.x, point.y);
+        }
+    }
+    
+    function Deserialize(bytes memory b) internal view returns (Data memory point) {
+        if (b.length == 64) {
+            //Fetch uncompressed point
+            uint temp;
+            assembly { temp := mload(add(b, 32)) }
+            point.x = temp;
+            
+            assembly { temp := mload(add(b, 64)) }
+            point.y = temp;
+        }
+        else if (b.length == 32) {
+            //Fetch Compressed Point
+            uint temp;
+            assembly { temp := mload(add(b, 32)) }
+            point = ExpandPoint(temp);
+        }
+        else {
+            revert("G1Point:IncorrectSize");
         }
     }
 }
