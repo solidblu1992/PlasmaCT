@@ -125,4 +125,49 @@ library SchnorrSignature {
 		//Calculate Hash
 		return keccak256(abi.encodePacked(sig.msg, sig.R.x, sig.R.y, sig.s));
 	}
+	
+	//Convert Schnorr Signature into bytes
+	function Serialize(Data memory sig, bool compress_points) internal pure returns (bytes memory b) {
+	    b = abi.encodePacked(compress_points, bytes(sig.msg).length, sig.R.Serialize(compress_points), sig.s, bytes(sig.msg));
+	}
+	
+	//Convert unpack bytes into Schnorr Signature
+	function Deserialize(bytes memory b) internal pure returns (Data memory sig) {
+	    //Check input, smallest signature is 97 bytes: compress_flag + msg.length + R_compressed + s + (no message)
+	    require(b.length >= 97);
+	    
+	    //Get compress points flag
+	    bool compress_points;
+	    uint msg_length;
+	    assembly {
+	        compress_points := mload(add(b, 32))
+	        msg_length := mload(add(b, 33))
+	    }
+	    
+	    //Finish checking input
+	    if (compress_points) {
+	        require(b.length == (65 + msg_length));
+	    }
+	    else {
+	        require(b.length == (97 + msg_length));
+	    }
+	    
+	    //Retreive the rest of the signature
+	    uint temp;
+	    assembly { temp := mload(add(b, 65)) }
+	    sig.R.x = temp;
+	    
+	    assembly { temp := mload(add(b, 97)) }
+	    sig.R.y = temp;
+	    
+	    assembly { temp := mload(add(b, 129)) }
+	    sig.s = temp;
+	    
+	    bytes memory b_temp;
+	    assembly {
+	        b_temp := add(b, 161)
+	        mstore(b_temp, msg_length)
+	    }
+	    sig.msg = string(b_temp);
+	}
 }
