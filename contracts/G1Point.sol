@@ -228,35 +228,19 @@ library G1Point {
     }
     
     //Serializes G1Point into bytes
-    function Serialize(Data memory point, bool compress) internal pure returns (bytes memory b) {
-        if (compress) {
-            //Pack compressed point
-            b = abi.encodePacked(CompressPoint(point));
-        }
-        else {
-            //Pack uncompressed point
-            b = abi.encodePacked(point.x, point.y);
-        }
+    function Serialize(Data memory point) internal pure returns (bytes memory b) {
+        //Pack uncompressed point
+        b = abi.encodePacked(point.x, point.y);
     }
     
-    function Deserialize(bytes memory b) internal view returns (Data memory point) {
-        if (b.length == 64) {
-            //Fetch uncompressed point
-            uint temp;
-            assembly { temp := mload(add(b, 32)) }
-            point.x = temp;
-            
-            assembly { temp := mload(add(b, 64)) }
-            point.y = temp;
-        }
-        else if (b.length == 32) {
-            //Fetch Compressed Point
-            uint temp;
-            assembly { temp := mload(add(b, 32)) }
-            point = ExpandPoint(temp);
-        }
-        else {
-            revert("G1Point:IncorrectSize");
-        }
+    //Deserialize G1Point from bytes
+    function Deserialize(bytes memory b) internal pure returns (Data memory point) {
+        //Fetch uncompressed point
+        uint temp;
+        assembly { temp := mload(add(b, 32)) }
+        point.x = temp;
+        
+        assembly { temp := mload(add(b, 64)) }
+        point.y = temp;
     }
 }

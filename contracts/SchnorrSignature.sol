@@ -9,21 +9,23 @@ library SchnorrSignature {
     using G1Point for G1Point.Data;
     
     struct Data {
-		string msg;
 		G1Point.Data R;
 		uint s;
+		string message;
 	}
 	
+	//Recover public key required to make Schnorr Signature valid
 	function Recover(Data memory sig) internal view returns (G1Point.Data memory P) {
 		//Do input checks
 		assert(sig.R.IsOnCurve());
 		
 		//sG = R - eP
 		//P = e^-1 (R - sG)
-		uint e_inv = Scalar.Inverse(uint(keccak256(abi.encodePacked(sig.R.x, sig.R.y, sig.msg))));
+		uint e_inv = Scalar.Inverse(uint(keccak256(abi.encodePacked(sig.R.x, sig.R.y, sig.message))));
 		P = sig.R.Add(G1Point.MultiplyG1(sig.s).Negate()).Multiply(e_inv);
 	}
 	
+	//Recover public keys from multiple Schnorr Signature (using only one mod-inverses)
 	function RecoverMultiple(Data[] memory sig) internal view returns(G1Point.Data[] memory P) {
 		//Trivial Cases
 		if (sig.length == 0) {
@@ -43,7 +45,7 @@ library SchnorrSignature {
 			assert(sig[i].R.IsOnCurve());
 			
 			//Get e-value
-			e_inv[i] = uint(keccak256(abi.encodePacked(sig[i].R.x, sig[i].R.y, sig[i].msg)));
+			e_inv[i] = uint(keccak256(abi.encodePacked(sig[i].R.x, sig[i].R.y, sig[i].message)));
 		}
 		
 		//Calculate batch inverse
@@ -55,6 +57,55 @@ library SchnorrSignature {
 		for (i = 0; i < sig.length; i++) {
 			P[i] = sig[i].R.Add(G1Point.MultiplyG1(sig[i].s).Negate()).Multiply(e_inv[i]);
 		}
+	}
+	
+	//Recover sum of public keys from multiple Schnorr Signatures (using only one mod inverse and N-1 EC multiplications)
+	function RecoverMultipleSum(Data[] memory sig) internal view returns (G1Point.Data memory P) {
+		//Trivial Cases
+		if (sig.length == 0) {
+			P = G1Point.Data(0, 0);
+		}
+		else if (sig.length == 1) {
+			P = Recover(sig[0]);
+		}
+
+		//The main optimizations here are that
+		//1: only one mod-inverse is necessary,
+		//2: we can get by with only (N-1) multiplications vs (2N)
+		
+		//sG = R - eP
+		//P = e^-1 (R - sG)
+		//sum {P} = e0^-1(R) + e1^-1(R) + ... - (s0 + s1 + ...)G
+		uint[] memory e_inv = new uint[](sig.length);
+		
+		uint i;
+		for (i = 0; i < sig.length; i++) {
+			//Check that R is on the curve
+			assert(sig[i].R.IsOnCurve());
+			
+			//Get e-value
+			e_inv[i] = uint(keccak256(abi.encodePacked(sig[i].R.x, sig[i].R.y, sig[i].message)));
+		}
+		
+		//Calculate batch inverse
+		e_inv = Vector.Inverse(e_inv);
+		
+		//Sum (e0^-1(R) + e1^-1(R) + ...) and (s0 + s1 + ...)
+		
+		//Calculate Public Keys
+		uint s_sum = sig[0].s;
+		P = sig[0].R.Multiply(e_inv[0]);
+		
+		for (i = 1; i < sig.length; i++) {
+		    //Add sk
+		    s_sum = Scalar.Add(s_sum, sig[i].s);
+		    
+		    //Add ek^-1(R)
+		    P = P.Add(sig[i].R.Multiply(e_inv[i]));
+		}
+		
+		//Compute s_sum*G1 and subtract to P
+		P = P.Add(G1Point.MultiplyG1(s_sum).Negate());
 	}
 	
 	function IsValid(Data memory sig, G1Point.Data memory P) internal view returns (bool) {
@@ -90,7 +141,7 @@ library SchnorrSignature {
 			assert(sig[i].R.IsOnCurve());
 			
 			//Get e-value
-			e_inv[i] = uint(keccak256(abi.encodePacked(sig[i].R.x, sig[i].R.y, sig[i].msg)));
+			e_inv[i] = uint(keccak256(abi.encodePacked(sig[i].R.x, sig[i].R.y, sig[i].message)));
 			
 			if (i > 0) {
 				//i == 0: the initial value is already stored in s_sum and right before the for loop
@@ -119,55 +170,33 @@ library SchnorrSignature {
 		return left.Equals(right);
 	}
 	
-	function GetHash(Data memory sig)
-		internal pure returns (bytes32 hash)
-	{
+	function GetHash(Data memory sig) internal pure returns (bytes32 hash) {
 		//Calculate Hash
-		return keccak256(abi.encodePacked(sig.msg, sig.R.x, sig.R.y, sig.s));
+		return keccak256(abi.encodePacked(sig.R.x, sig.R.y, sig.s, sig.message));
 	}
 	
-	//Convert Schnorr Signature into bytes
-	function Serialize(Data memory sig, bool compress_points) internal pure returns (bytes memory b) {
-	    b = abi.encodePacked(compress_points, bytes(sig.msg).length, sig.R.Serialize(compress_points), sig.s, bytes(sig.msg));
+	//Serialze Schnorr Signature into bytes
+	function Serialize(Data memory sig) internal pure returns (bytes memory b) {
+	    bytes memory msg_bytes = bytes(sig.message);
+	    
+	    //Note, need to encode message length for bytes => string conversion to work
+	    b = abi.encodePacked(sig.R.Serialize(), sig.s, msg_bytes.length, msg_bytes);
 	}
 	
-	//Convert unpack bytes into Schnorr Signature
+	//Deserialize Schnorr Signature from bytes
 	function Deserialize(bytes memory b) internal pure returns (Data memory sig) {
-	    //Check input, smallest signature is 97 bytes: compress_flag + msg.length + R_compressed + s + (no message)
-	    require(b.length >= 97);
+	    //Get R
+	    bytes memory b_temp;
+	    assembly { b_temp := add(b, 32) }
+	    sig.R = G1Point.Deserialize(b);
 	    
-	    //Get compress points flag
-	    bool compress_points;
-	    uint msg_length;
-	    assembly {
-	        compress_points := mload(add(b, 32))
-	        msg_length := mload(add(b, 33))
-	    }
-	    
-	    //Finish checking input
-	    if (compress_points) {
-	        require(b.length == (65 + msg_length));
-	    }
-	    else {
-	        require(b.length == (97 + msg_length));
-	    }
-	    
-	    //Retreive the rest of the signature
+	    //Get S
 	    uint temp;
-	    assembly { temp := mload(add(b, 65)) }
-	    sig.R.x = temp;
-	    
-	    assembly { temp := mload(add(b, 97)) }
-	    sig.R.y = temp;
-	    
-	    assembly { temp := mload(add(b, 129)) }
+	    assembly { temp := add(b, 96) }
 	    sig.s = temp;
 	    
-	    bytes memory b_temp;
-	    assembly {
-	        b_temp := add(b, 161)
-	        mstore(b_temp, msg_length)
-	    }
-	    sig.msg = string(b_temp);
+	    //Get message
+	    assembly { b_temp := add(b, 128) }
+	    sig.message = string(b_temp);
 	}
 }
