@@ -119,6 +119,21 @@ def point_to_str(p):
         s += bytes_to_str(int_to_bytes(p[1].coeffs[0], 32)) + ",\n" + bytes_to_str(int_to_bytes(p[1].coeffs[1], 32)) + "]"
     return s
 
+def point_to_str_packed(p):
+    if (type(p) != tuple):
+        p = ExpandPoint(p)
+
+    if (len(p) == 3):
+        p = normalize(p)
+
+    if (type(p[0]) == FQ):
+        s = bytes_to_str(int_to_bytes(p[0].n, 32))[2:] + bytes_to_str(int_to_bytes(p[1].n, 32))[2:]
+    else:
+        s = bytes_to_str(int_to_bytes(p[0].coeffs[0], 32))[2:] + bytes_to_str(int_to_bytes(p[0].coeffs[1], 32))[2:]
+        s += bytes_to_str(int_to_bytes(p[1].coeffs[0], 32))[2:] + bytes_to_str(int_to_bytes(p[1].coeffs[1], 32))[2:]
+                         
+    return s
+
 def hash_of_int(i):
     hasher = sha3.keccak_256(int_to_bytes(i,32))
     x = bytes_to_int(hasher.digest())
@@ -384,7 +399,6 @@ def ExpandPoint(Pin):
     parity = (Pin & (0x3 << 256)) >> 256
     assert (parity == 0x2 or parity == 0x3)
     
-    print(hex(parity))
     x = Pin & 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
     y_squared = x**3 + b
     y = y_squared**((Pcurve+1)//4)

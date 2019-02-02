@@ -77,34 +77,20 @@ class Schnorr:
     #Print Schnorr signature
     def print(self):
         print("Schnorr Signature:")
+        print("R: " + point_to_str(self.R))
+        print("s: " + hex(self.s))
+        print("P: " + point_to_str(self.recover()))
         print("msg: \"" + self.msg + "\"") 
-        print("R: " + bytes_to_str(CompressPoint(self.R)))
-        print("s: " + bytes_to_str(self.s))
-        print("P: " + bytes_to_str(CompressPoint(self.recover())))
 
     def print_eth(self):
-        '''MEW:
-        print("R:")
-        print(point_to_str(self.R))
-        print("s:")
-        print(hex(self.s))
-        print("W_sG:")
-        print(point_to_str(multiply(G, self.s)))
-        print("W_P:")
-        print(point_to_str(self.recover()))
-        '''
-        print("\"0x0\",")
-        R = normalize(self.R)
-        print("[\"" + hex(R[0].n) + "\",")
-        print("\"" + hex(R[1].n) + "\"],")
-        print("\"" + hex(self.s) + "\",")
-        print("\"" + hex(sInv(Schnorr.calc_e(self.msg, self.R))) + "\",")
-        W_sG = normalize(multiply(G, self.s))
-        print("[\"" + hex(W_sG[0].n) + "\",")
-        print("\"" + hex(W_sG[1].n) + "\"],")
-        P = normalize(self.recover())
-        print("[\"" + hex(P[0].n) + "\",")
-        print("\"" + hex(P[1].n) + "\"]")
+        print("Schnorr Signature:")
+        print("0x" + point_to_str_packed(self.R), end="")
+        print(bytes_to_str(int_to_bytes(self.s))[2:], end="")
+        print(bytes_to_str(int_to_bytes(len(self.msg)))[2:], end="")
+
+        if (len(self.msg) > 0):
+            print(bytes_to_str(bytes(self.msg, 'utf'))[2:])
+        
         
 #Quick Test
 if (False):
