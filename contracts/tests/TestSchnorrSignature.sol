@@ -16,6 +16,9 @@ contract TestSchnorrSignature {
             0x9fc80c58c187361ca2ccdfb97315f55985b53a09fb2ddd91e84330a12ccc5e6,
             "Hello World"
         );
+        
+        //Should recover to:
+        //0x13e9edf759f89b5cdd2d491d3d21a6bdaaede22254778e108fbdd2c9a472c34f033ce1f1f68ef44b85f2824b19da6ecd12efa1f2ba6c23d45adedccd81b111b4
     
         pub_key = sig.Recover().Serialize();
     }

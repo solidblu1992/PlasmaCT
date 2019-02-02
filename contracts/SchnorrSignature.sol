@@ -157,7 +157,7 @@ library SchnorrSignature {
 	    
 	    //Get S
 	    uint temp;
-	    assembly { temp := add(b, 96) }
+	    assembly { temp := mload(add(b, 96)) }
 	    sig.s = temp;
 	    
 	    //Get message
