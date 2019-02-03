@@ -80,15 +80,19 @@ class Schnorr:
         print("R: " + point_to_str(self.R))
         print("s: " + hex(self.s))
         print("P: " + point_to_str(self.recover()))
-        print("msg: \"" + self.msg + "\"") 
+
+        if (len(self.msg) > 0):
+            print("msg: \"" + self.msg + "\"")
+        else:
+            print("msg: {blank}")
 
     def print_eth(self):
         print("Schnorr Signature:")
         print("0x" + point_to_str_packed(self.R), end="")
         print(bytes_to_str(int_to_bytes(self.s))[2:], end="")
-        print(bytes_to_str(int_to_bytes(len(self.msg)))[2:], end="")
 
         if (len(self.msg) > 0):
+            print(bytes_to_str(int_to_bytes(len(self.msg)))[2:], end="")
             print(bytes_to_str(bytes(self.msg, 'utf'))[2:])
         
         
