@@ -9,18 +9,29 @@ contract TestSchnorrSignature {
     constructor() public {}
     function Kill() public { selfdestruct(msg.sender); }
     
-    function Recover() public view returns (bytes memory pub_key) {
-        SchnorrSignature.Data memory sig = SchnorrSignature.Data(
-            G1Point.Data(   0x1a0fc7c4d0b4398ab54c7de5b468346e99ca4d1d0900ee87a42d309720b047b2,
-                            0x2ff799ef82792aac086dfc8d7d548589d44d34230e09e2b5654d91bd53a55ebd),
-            0x9fc80c58c187361ca2ccdfb97315f55985b53a09fb2ddd91e84330a12ccc5e6,
-            "Hello World"
-        );
+    function Recover(bytes memory sig_bytes) public view returns (bytes memory pub_key) {
+        SchnorrSignature.Data memory sig = SchnorrSignature.Deserialize(sig_bytes);
         
+        //Signature:
+        //0x0f9c25a001e021faf5eca5df3a2625ea5495c5c2b8111830f4b6e140423946bf16785135c512a0082f7e7a872f7830b16c16d9a860c85133d7637cc36e5f21831db44895de9f22a1be3cf081fba3188f1b535ee8001d1c900340957afb185600000000000000000000000000000000000000000000000000000000000000000b74657374732061686f7921
         //Should recover to:
-        //0x13e9edf759f89b5cdd2d491d3d21a6bdaaede22254778e108fbdd2c9a472c34f033ce1f1f68ef44b85f2824b19da6ecd12efa1f2ba6c23d45adedccd81b111b4
+        //0x2abcfabf4d00f3173559488a2b799425efcfece3e097395eb291d1040e09e04112367d044463c5bd263543da907394ec3cddfaa0b0b65c7501c93ed933c28099
     
         pub_key = sig.Recover().Serialize();
+    }
+    
+    function RecoverMultipleSum(bytes memory sig_bytes1, bytes memory sig_bytes2) public view returns (bytes memory pub_key) {
+        SchnorrSignature.Data[] memory sigs = new SchnorrSignature.Data[](2);
+        
+        //Signatures:
+        //0x0f9c25a001e021faf5eca5df3a2625ea5495c5c2b8111830f4b6e140423946bf16785135c512a0082f7e7a872f7830b16c16d9a860c85133d7637cc36e5f21831db44895de9f22a1be3cf081fba3188f1b535ee8001d1c900340957afb185600000000000000000000000000000000000000000000000000000000000000000b74657374732061686f7921
+        //0x2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe000000000000000000000000000000000000000000000000000000000000000b68656c6c6f20776f726c64
+        //Should recover to (in either order):
+        //0x2e29e590087df866dc80832f043be7bc770184aa3402385c1eaad8a70e892c15275f555486fc18581feb0d54f9870711887e5f19464e98a5f0dc3868d9b6c414
+    
+        sigs[0] = SchnorrSignature.Deserialize(sig_bytes1);
+        sigs[1] = SchnorrSignature.Deserialize(sig_bytes2);
+        pub_key = SchnorrSignature.RecoverMultipleSum(sigs).Serialize();
     }
     
     function Serialize(uint x, uint y, uint s, string memory message) public pure returns (bytes memory sig_bytes) {
@@ -28,6 +39,19 @@ contract TestSchnorrSignature {
     }
     
     function Deserialize(bytes memory sig_bytes) public pure returns (uint x, uint y, uint s, string memory message) {
+        //Test Vectors
+        //Blank message, no length - OK
+        //0x2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe
+        
+        //Blank message, but length encoded - OK
+        //0x2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe0000000000000000000000000000000000000000000000000000000000000000
+        
+        //Non blank message, length encoded - OK
+        //0x2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe000000000000000000000000000000000000000000000000000000000000000b68656c6c6f20776f726c64
+        
+        //Non blank message, no length encoded - FAIL
+        //0x2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe68656c6c6f20776f726c64
+        
         SchnorrSignature.Data memory sig = SchnorrSignature.Deserialize(sig_bytes);
         x = sig.R.x;
         y = sig.R.y;

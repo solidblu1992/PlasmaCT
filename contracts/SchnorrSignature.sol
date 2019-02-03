@@ -144,8 +144,14 @@ library SchnorrSignature {
 	function Serialize(Data memory sig) internal pure returns (bytes memory b) {
 	    bytes memory msg_bytes = bytes(sig.message);
 	    
-	    //Note, need to encode message length for bytes => string conversion to work
-	    b = abi.encodePacked(sig.R.Serialize(), sig.s, msg_bytes.length, msg_bytes);
+	    //If message is blank, do not encode
+	    if (msg_bytes.length == 0) {
+	        b = abi.encodePacked(sig.R.Serialize(), sig.s);
+	    }
+	    else {
+	        //Note, need to encode message length for bytes in order for string conversion to work
+	        b = abi.encodePacked(sig.R.Serialize(), sig.s, msg_bytes.length, msg_bytes);
+	    }
 	}
 	
 	//Deserialize Schnorr Signature from bytes
@@ -160,8 +166,11 @@ library SchnorrSignature {
 	    assembly { temp := mload(add(b, 96)) }
 	    sig.s = temp;
 	    
-	    //Get message
-	    assembly { b_temp := add(b, 128) }
-	    sig.message = string(b_temp);
+	    //If message is not blank
+	    if (b.length > 96) {
+    	    //Get message
+    	    assembly { b_temp := add(b, 128) }
+    	    sig.message = string(b_temp);
+	    }
 	}
 }
