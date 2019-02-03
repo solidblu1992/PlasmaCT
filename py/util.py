@@ -7,6 +7,7 @@ import sha3
 Ncurve = curve_order
 Pcurve = field_modulus
 counters = [0]*32
+use_simple_hash_to_point = True
 
 def sqrt(x):
     if ((type(x) != FQ) and (type(x) != FQ2)):
@@ -189,42 +190,84 @@ def get_xy2(x_1, x_2, x_3):
 def point1_from_t(t):
     if (type(t) != FQ):
         t = FQ(t)
-    
-    sqrt3 = sqrt(FQ(-3))
-    F0 = ((sqrt3-1)/2, sqrt(1+b), FQ(1))
 
-    if (t == 0):
-        return F0
-    
-    w = sqrt3*t/(1+b+t**2)
-    x_1 = (sqrt3-1)/2 - t*w
-    x_2 = -x_1 - 1
-    x_3 = 1 + 1 / w**2
+    #Simple hash to point
+    #t = x-coordinate, check if x is on curve
+    #if not, increment t by 1
+    if (use_simple_hash_to_point):
+        x = t
 
-    T = get_xy1(x_1, x_2, x_3)
+        onCurve = False
+        while (not onCurve):
+            y2 = x**3 + b
+            y = sqrt(y2)
 
-    return add(F0, T)
+            onCurve = (y**2 == y2)
+
+            if (not onCurve):
+                x += 1
+        
+        return (x, y, FQ.one())
+
+    #More complex hash to point
+    #Only has to check 3 x-cordinates at most
+    else:
+        sqrt3 = sqrt(FQ(-3))
+        F0 = ((sqrt3-1)/2, sqrt(1+b), FQ(1))
+
+        if (t == 0):
+            return F0
+        
+        w = sqrt3*t/(1+b+t**2)
+        x_1 = (sqrt3-1)/2 - t*w
+        x_2 = -x_1 - 1
+        x_3 = 1 + 1 / w**2
+
+        T = get_xy1(x_1, x_2, x_3)
+
+        return add(F0, T)
     
 
 def point2_from_t(t):  
     if (type(t) != FQ2):
-        t = FQ2([t, 0])
+        t = FQ2([t, hash_of_int(t)])
 
-    sqrt3 = sqrt(FQ2([-3, 0]))
-    F0 = ((sqrt3-FQ2.one())/2, sqrt(FQ2.one()+b2), FQ2.one())
+    #Simple hash to point
+    #t = x-coordinate, check if x is on curve
+    #if not, increment t by [1, 0]
+    if (use_simple_hash_to_point):
+        x = t
 
-    if (t == FQ2.zero()):
-        return F0
+        onCurve = False
+        while (not onCurve):
+            y2 = x**3 + b2
+            y = sqrt(y2)#y2**a
 
-    w = sqrt3*t/(FQ2.one()+b2+t**2)
+            onCurve = (y**2 == y2)
 
-    x_1 = (sqrt3-FQ2.one())/FQ2([2, 0]) - t*w
-    x_2 = -x_1 - FQ2.one()
-    x_3 = FQ2.one() + FQ2.one() / w**2
+            if (not onCurve):
+                x += FQ2([1, 0])
+        
+        return multiply((x, y, FQ2.one()), Fp2_cofactor)
+    
+    #More complex hash to point
+    #Only has to check 3 x-cordinates at most
+    else:  
+        sqrt3 = sqrt(FQ2([-3, 0]))
+        F0 = ((sqrt3-FQ2.one())/2, sqrt(FQ2.one()+b2), FQ2.one())
 
-    T = get_xy2(x_1, x_2, x_3)
+        if (t == FQ2.zero()):
+            return F0
 
-    return multiply(add(F0, T), Fp2_cofactor)
+        w = sqrt3*t/(FQ2.one()+b2+t**2)
+
+        x_1 = (sqrt3-FQ2.one())/FQ2([2, 0]) - t*w
+        x_2 = -x_1 - FQ2.one()
+        x_3 = FQ2.one() + FQ2.one() / w**2
+
+        T = get_xy2(x_1, x_2, x_3)
+
+        return multiply(add(F0, T), Fp2_cofactor)
     
 
 def hash_of_point(p):
@@ -298,34 +341,6 @@ def hash_point_to_point1(p):
     hasher.update(b"G1")
     x = bytes_to_int(hasher.digest())    
     return point1_from_t(x)
-
-def hash_point_to_point1_old(p):
-    p = normalize(p)
-    hasher = sha3.keccak_256()
-
-    if (type(p[0]) == FQ):
-        hasher.update(int_to_bytes(p[0].n, 32))
-        hasher.update(int_to_bytes(p[1].n, 32))
-    else:
-        hasher.update(int_to_bytes(p[0].coeffs[0], 32))
-        hasher.update(int_to_bytes(p[0].coeffs[1], 32))
-        hasher.update(int_to_bytes(p[1].coeffs[0], 32))
-        hasher.update(int_to_bytes(p[1].coeffs[1], 32))
-        
-    x = FQ(bytes_to_int(hasher.digest()))
-    a = (Pcurve + 1) // 4
-
-    onCurve = False
-    while (not onCurve):
-        y2 = x**3 + b
-        y = y2**a
-
-        onCurve = (y**2 == y2)
-
-        if (not onCurve):
-            x += 1
-    
-    return (x, y, FQ.one())
 
 def hash_point_to_point2(p):
     p = normalize(p)
