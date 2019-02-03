@@ -228,9 +228,14 @@ def point1_from_t(t):
         return add(F0, T)
     
 
-def point2_from_t(t):  
-    if (type(t) != FQ2):
-        t = FQ2([t, hash_of_int(t)])
+def point2_from_t(tx, ty=None):
+    if (ty == None):
+        if (type(tx) != FQ2):
+            t = FQ2([tx, hash_of_int(tx)])
+        else:
+            t = tx
+    else:
+        t = FQ2([tx, ty])
 
     #Simple hash to point
     #t = x-coordinate, check if x is on curve
