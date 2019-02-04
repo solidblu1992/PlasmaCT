@@ -7,9 +7,11 @@ contract TestSchnorrSignature {
     using SchnorrSignature for SchnorrSignature.Data;
     
     constructor() public {}
-    function Kill() public { selfdestruct(msg.sender); }
+    function DebugKill() public { selfdestruct(msg.sender); }
     
-    function Recover(bytes memory sig_bytes) public view returns (bytes memory pub_key) {
+    function Recover(bytes memory sig_bytes)
+        public view returns (bytes memory pub_key)
+    {
         SchnorrSignature.Data memory sig = SchnorrSignature.Deserialize(sig_bytes);
         
         //Signature:
@@ -20,7 +22,9 @@ contract TestSchnorrSignature {
         pub_key = sig.Recover().Serialize();
     }
     
-    function RecoverMultipleSum(bytes memory sig_bytes1, bytes memory sig_bytes2) public view returns (bytes memory pub_key) {
+    function RecoverMultipleSum(bytes memory sig_bytes1, bytes memory sig_bytes2)
+        public view returns (bytes memory pub_key)
+    {
         SchnorrSignature.Data[] memory sigs = new SchnorrSignature.Data[](2);
         
         //Signatures:
@@ -34,11 +38,15 @@ contract TestSchnorrSignature {
         pub_key = SchnorrSignature.RecoverMultipleSum(sigs).Serialize();
     }
     
-    function Serialize(uint x, uint y, uint s, string memory message) public pure returns (bytes memory sig_bytes) {
+    function Serialize(uint x, uint y, uint s, string memory message)
+        public pure returns (bytes memory sig_bytes)
+    {
         return SchnorrSignature.Serialize(SchnorrSignature.Data(G1Point.Data(x, y), s, message));
     }
     
-    function Deserialize(bytes memory sig_bytes) public pure returns (uint x, uint y, uint s, string memory message) {
+    function Deserialize(bytes memory sig_bytes)
+        public pure returns (uint x, uint y, uint s, string memory message)
+    {
         //Test Vectors
         //Blank message, no length - OK
         //0x2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe
@@ -55,6 +63,24 @@ contract TestSchnorrSignature {
         SchnorrSignature.Data memory sig = SchnorrSignature.Deserialize(sig_bytes);
         x = sig.R.x;
         y = sig.R.y;
+        s = sig.s;
+        message = sig.message;
+    }
+    
+    function Deserialize_wG1Point(bytes memory sig_w_point_bytes)
+        public pure returns (uint Px, uint Py, uint Rx, uint Ry, uint s, string memory message)
+    {
+        //Test Vectors
+        //0x0267b562f94e5cf70e32c0d88cc6ecd6bcd713dc2ea0144d27a35b86dd6eb7a0090714460fdced6343303408f6b0e951e629ecbfd3035d92deb0f96a170b228e2f50622923938d72aa137e210e98820927d95d84786e9c609009d408f0b0f3181ea562b6ee15cd585aa7a36bee31696251cc966471430f4d30690661effe1e4424171445cd8ea0e0e13d3acc49be9d1713dc970556af5319aaae930e44e37afe000000000000000000000000000000000000000000000000000000000000000b68656c6c6f20776f726c64
+        
+        G1Point.Data memory point;
+        SchnorrSignature.Data memory sig;
+        (point, sig) = SchnorrSignature.Deserialize_wG1Point(sig_w_point_bytes);
+        
+        Px = point.x;
+        Py = point.y;
+        Rx = sig.R.x;
+        Ry = sig.R.y;
         s = sig.s;
         message = sig.message;
     }

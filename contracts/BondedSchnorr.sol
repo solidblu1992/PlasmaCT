@@ -16,20 +16,19 @@ contract BondedSchnorr {
     struct SchnorrBond {
         address bondee;             //Who owns the bond?
         uint finalization_block;    //When does the bond finalize?
-        
-        bytes32 pub_key_hash;       //Expected Public Key
     }
     
-    event NewSchnorrBond(address _bondee, uint _finalization_block, bytes sig_bytes, bytes pub_key_bytes);
+    event NewSchnorrBond(address _bondee, uint _finalization_block, bytes sig_w_point_bytes);
     
     mapping (bytes32 => SchnorrBond) bonds;
     mapping (bytes32 => bool) finalized_bonds;
     
-    //Constructor
+    ///Constructor
     constructor() public {}
     function DebugKill() public { selfdestruct(msg.sender); }
     
-    //View only functions
+    ///View only functions
+    //Check to see if a signature is currently bonded
     function IsBonded(bytes32 bond_hash) public view returns (bool) {
         SchnorrBond memory bond = bonds[bond_hash];
         
@@ -41,15 +40,16 @@ contract BondedSchnorr {
         }
     }
     
+    //Check to see if a signature is finalized (that is, valid)
     function IsFinalized(bytes32 bond_hash) public view returns (bool) {
         return finalized_bonds[bond_hash];
     }
     
-    //State modifying functions
-    function Bond(bytes memory sig_bytes, bytes memory pub_key_bytes) public returns (bool) {
+    ///State modifying functions
+    //Bond a signature. Bet DAI that it is valid, anyone can challenge
+    function Bond(bytes memory sig_w_point_bytes) public returns (bool) {
         //Get hash of signature
-        bytes32 h_sig = keccak256(abi.encodePacked(sig_bytes));
-        bytes32 h_pub_key = keccak256(abi.encodePacked(pub_key_bytes));
+        bytes32 h_sig = keccak256(abi.encodePacked(sig_w_point_bytes));
         
         //Bond must be new
         if (IsBonded(h_sig)) return false;
@@ -62,14 +62,15 @@ contract BondedSchnorr {
         
         //Create Bond
         uint finalization_block = block.number + bond_duration;
-        bonds[h_sig] = SchnorrBond(msg.sender, finalization_block, h_pub_key);
+        bonds[h_sig] = SchnorrBond(msg.sender, finalization_block);
         
         //Emit Bond information (for challengers)
-        emit NewSchnorrBond(msg.sender, finalization_block, sig_bytes, pub_key_bytes);
+        emit NewSchnorrBond(msg.sender, finalization_block, sig_w_point_bytes);
         
         return true;
     }
 
+    //Finalize a bond. After finalization block, mark the signature as valid and return DAI
     function FinalizeBond(bytes32 bond_hash) public returns (bool) {
         //If bond already finalized, do nothing
         if (IsFinalized(bond_hash)) return true;
@@ -82,7 +83,7 @@ contract BondedSchnorr {
         
         //Finalize Bond (add to finalized list and clear bond)
         address bondee = bonds[bond_hash].bondee;
-        bonds[bond_hash] = SchnorrBond(address(0), 0, 0);
+        bonds[bond_hash] = SchnorrBond(address(0), 0);
         finalized_bonds[bond_hash] = true;
         
         //Return bonded DAI
@@ -90,23 +91,24 @@ contract BondedSchnorr {
         return true;
     }
 
-    function ChallengeBond(bytes memory sig_bytes, bytes memory pub_key_bytes) public returns (bool) {
+    //Challenge a bond. If bonded signature is invalid, give DAI bond to challengee.
+    //Can also be used to instantly finalize a bond while costing more gas.
+    function ChallengeBond(bytes memory sig_w_point_bytes) public returns (bool) {
         //Get hash of signature
-        bytes32 h_sig = keccak256(abi.encodePacked(sig_bytes));
-        bytes32 h_pub_key = keccak256(abi.encodePacked(pub_key_bytes));
+        bytes32 h_sig = keccak256(abi.encodePacked(sig_w_point_bytes));
         
         //Must be bonded
         if (!IsBonded(h_sig)) return false;
         
-        //Expected output pub key must match
-        if (bonds[h_sig].pub_key_hash != h_pub_key) return false;
-        
         //Check signature
-        G1Point.Data memory point = G1Point.Deserialize(pub_key_bytes);
-        if (SchnorrSignature.Deserialize(sig_bytes).IsValid(point)) {
+        G1Point.Data memory point;
+        SchnorrSignature.Data memory sig;
+        (point, sig) = SchnorrSignature.Deserialize_wG1Point(sig_w_point_bytes);
+        
+        if (sig.IsValid(point)) {
             //Signature is actually valid.  Instantly finalize the bond.
             address bondee = bonds[h_sig].bondee;
-            bonds[h_sig] = SchnorrBond(address(0), 0, 0);
+            bonds[h_sig] = SchnorrBond(address(0), 0);
             finalized_bonds[h_sig] = true;
             
             //Return bonded DAI
@@ -114,7 +116,7 @@ contract BondedSchnorr {
         }
         else {
             //Signature is invalid. Give bond to challenger.
-            bonds[h_sig] = SchnorrBond(address(0), 0, 0);
+            bonds[h_sig] = SchnorrBond(address(0), 0);
             
             //Send DAI to challenger
             DAI.transfer(msg.sender, bond_price);

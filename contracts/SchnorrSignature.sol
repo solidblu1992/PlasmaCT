@@ -173,4 +173,19 @@ library SchnorrSignature {
     	    sig.message = string(b_temp);
 	    }
 	}
+
+	//Deserialize a G1Point and a Schnorr Signature from bytes
+	function Deserialize_wG1Point(bytes memory sig_w_point_bytes)
+		internal pure returns (G1Point.Data memory point, Data memory sig)
+	{
+	    //Get point
+	    point = G1Point.Deserialize(sig_w_point_bytes);
+	    
+	    //Get signature
+	    bytes memory b;
+	    assembly {
+	        b := add(sig_w_point_bytes, 64)
+	    }
+		sig = Deserialize(b);
+	}
 }
