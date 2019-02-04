@@ -18,7 +18,7 @@ contract BondedSchnorr {
         uint finalization_block;    //When does the bond finalize?
     }
     
-    event NewSchnorrBond(address _bondee, uint _finalization_block, bytes sig_w_point_bytes);
+    event NewSchnorrBond(address _bondee, uint _finalization_block, bytes _sig_w_point_bytes);
     
     mapping (bytes32 => SchnorrBond) bonds;
     mapping (bytes32 => bool) finalized_bonds;
