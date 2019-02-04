@@ -179,6 +179,12 @@ library SchnorrSignature {
 		internal pure returns (G1Point.Data memory point, Data memory sig)
 	{
 	    //Get point
+	    /*
+	    //Store G1Point length so that Deserialize sees 64 bytes instead of total signature length
+	    //Store original bytes length for safe keeping 
+	    uint b_length = sig_w_point_bytes.length;
+	    assembly { mstore(sig_w_point_bytes, 64) }
+	    */
 	    point = G1Point.Deserialize(sig_w_point_bytes);
 	    
 	    //Get signature
