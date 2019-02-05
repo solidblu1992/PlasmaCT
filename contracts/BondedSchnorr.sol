@@ -1,5 +1,6 @@
 pragma solidity ^0.5.0;
 
+import "./Addresses.sol";
 import "./TestERC20.sol";
 import "./SchnorrSignature.sol";
 
@@ -8,7 +9,7 @@ contract BondedSchnorr {
     using SchnorrSignature for SchnorrSignature.Data;
     
     //"Constants"
-    ERC20 DAI = ERC20(0xea100Bec80418680e55D28b655da6CbEF427275f);
+    ERC20 DAI = ERC20( Addresses.GoerliTestERC20() );
     uint bond_price = 1 ether;  //1 ether is really 1 DAI
     uint bond_duration = 40000; //40000 blocks ~ 1 week
     
