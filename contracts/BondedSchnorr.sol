@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-import "./DaiInterface.sol";
+import "./TestERC20.sol";
 import "./SchnorrSignature.sol";
 
 contract BondedSchnorr {
@@ -8,7 +8,7 @@ contract BondedSchnorr {
     using SchnorrSignature for SchnorrSignature.Data;
     
     //"Constants"
-    ERC20 DAI = ERC20(0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359);
+    ERC20 DAI = ERC20(0xea100Bec80418680e55D28b655da6CbEF427275f);
     uint bond_price = 1 ether;  //1 ether is really 1 DAI
     uint bond_duration = 40000; //40000 blocks ~ 1 week
     
@@ -18,7 +18,9 @@ contract BondedSchnorr {
         uint finalization_block;    //When does the bond finalize?
     }
     
-    event NewSchnorrBond(address _bondee, uint _finalization_block, bytes _sig_w_point_bytes);
+    event NewSchnorrBond(address _bondee, uint _finalization_block, bytes32 sig_hash, bytes sig_w_point_bytes);
+    event SchnorrBondFinalized(bytes32 sig_hash);
+    event SchnorrBondRejected(bytes32 sig_hash);
     
     mapping (bytes32 => SchnorrBond) bonds;
     mapping (bytes32 => bool) finalized_bonds;
@@ -65,7 +67,7 @@ contract BondedSchnorr {
         bonds[h_sig] = SchnorrBond(msg.sender, finalization_block);
         
         //Emit Bond information (for challengers)
-        emit NewSchnorrBond(msg.sender, finalization_block, sig_w_point_bytes);
+        emit NewSchnorrBond(msg.sender, finalization_block, h_sig, sig_w_point_bytes);
         
         return true;
     }
@@ -85,6 +87,7 @@ contract BondedSchnorr {
         address bondee = bonds[bond_hash].bondee;
         bonds[bond_hash] = SchnorrBond(address(0), 0);
         finalized_bonds[bond_hash] = true;
+        emit SchnorrBondFinalized(bond_hash);
         
         //Return bonded DAI
         DAI.transfer(bondee, bond_price);
@@ -110,6 +113,7 @@ contract BondedSchnorr {
             address bondee = bonds[h_sig].bondee;
             bonds[h_sig] = SchnorrBond(address(0), 0);
             finalized_bonds[h_sig] = true;
+            emit SchnorrBondFinalized(h_sig);
             
             //Return bonded DAI
             DAI.transfer(bondee, bond_price);
@@ -117,9 +121,14 @@ contract BondedSchnorr {
         else {
             //Signature is invalid. Give bond to challenger.
             bonds[h_sig] = SchnorrBond(address(0), 0);
+            emit SchnorrBondRejected(h_sig);
             
             //Send DAI to challenger
             DAI.transfer(msg.sender, bond_price);
         }
     }
+    
+	function Debug_GetHash(bytes memory b) public pure returns (bytes32 hash) {
+	    hash = keccak256(abi.encodePacked(b));
+	}
 }
