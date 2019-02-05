@@ -145,6 +145,17 @@ def hash_of_str(s):
     x = bytes_to_int(hasher.digest())
     return x
 
+def hash_of_large_int(i):
+    #Get length in bytes
+    l = len(hex(i)) - 2
+    l = l // 2 + l % 2
+    
+    #Convert to bytes
+    b = int_to_bytes(i, l)
+    hasher = sha3.keccak_256(b)
+    x = bytes_to_int(hasher.digest())
+    return x
+
 def get_xy1(x_1, x_2, x_3):
     #Check x_1
     y2 = x_1**3 + b
