@@ -72,7 +72,41 @@ class Schnorr:
         #Recover Point
         PubKey = add(shamir_batch(R, e_inv), multiply(G, sNeg(Gscalar)))
         return PubKey
-            
+
+    #Get Bytes represenation of signature
+    def get_bytes(self):
+        #bytes(R, s, msg.length, msg)
+        
+        #Prep R
+        R = normalize(self.R)
+
+        #Assemble bytes
+        b = int_to_bytes(R[0].n) + int_to_bytes(R[1].n)
+        b += int_to_bytes(self.s)
+
+        if (len(self.msg) > 0):
+            b += int_to_bytes(len(self.msg)) + bytes(self.msg, 'utf')
+
+        return b
+
+    def get_bytes_wPubKey(self):
+        #bytes(P, R, s, msg.length, msg)
+        
+        #Prep Pub Key
+        P = normalize(self.recover())
+        b = int_to_bytes(P[0].n) + int_to_bytes(P[1].n) + self.get_bytes()
+        return b
+
+    #Hash Functions
+    def get_hash(self):
+        #keccak256(R, s, msg.length, msg)
+        hasher = sha3.keccak_256(self.get_bytes())
+        return bytes_to_int(hasher.digest())
+
+    def get_hash_wPubKey(self):
+        #keccac256(P, R, s, msg.length, msg)
+        hasher = sha3.keccak_256(self.get_bytes_wPubKey())
+        return bytes_to_int(hasher.digest())
 
     #Print Schnorr signature
     def print(self):
@@ -88,20 +122,16 @@ class Schnorr:
 
     def print_eth(self):
         print("Schnorr Signature:")
-        print("0x" + point_to_str_packed(self.R), end="")
-        print(bytes_to_str(int_to_bytes(self.s))[2:], end="")
-
-        if (len(self.msg) > 0):
-            print(bytes_to_str(int_to_bytes(len(self.msg)))[2:], end="")
-            print(bytes_to_str(bytes(self.msg, 'utf'))[2:])
-        
+        print(hex(bytes_to_int(self.get_bytes_wPubKey())))
+        print("Hash:")
+        print(hex(self.get_hash_wPubKey()))
         
 #Quick Test
-if (False):
+if (True):
     x = getRandom()
     P = multiply(G, x)
     
-    sig = Schnorr.sign(x)
+    sig = Schnorr.sign(x, "Hello World")
     Pout = normalize(sig.recover())
 
 #Multiple Test
