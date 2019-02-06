@@ -7,19 +7,35 @@ library Scalar {
         if (a >= modulo) a = a % modulo;
         return (modulo - a);
     }
+    
+    function Square(uint a) internal pure returns (uint) {
+        return mulmod(a, a, modulo);
+    }
 
     function Add(uint a, uint b) internal pure returns (uint) {
         return addmod(a, b, modulo);
     }
     
+    function Subtract(uint a, uint b) internal pure returns (uint) {
+        return Add(a, Negate(b));
+    }
+    
     function Multiply(uint a, uint b) internal pure returns (uint) {
         return mulmod(a, b, modulo);
     }
-
+    
     function Power(uint a, uint p) internal pure returns (uint power) {
         //Trivial Case
         if (p == 0) {
             power = 1;
+        }
+        //Identity
+        else if (p == 1) {
+            power = a;
+        }
+        //Square
+        else if (p == 2) {
+            power = Square(a);
         }
         //Low Powers
         else if (p < 16) {

@@ -7,10 +7,12 @@ import "./Vector.sol";
 
 library BulletProof {
     using G1Point for G1Point.Data;
+    using Scalar for uint;
     
     struct Data {	    
-		//Comitments
-		G1Point.Data[] V;
+		//Comitment
+		address asset_addr;
+		G1Point.Data V;
 		
 		//Signature Data
 		G1Point.Data A;
@@ -24,8 +26,25 @@ library BulletProof {
 		uint a;
 		uint b;
 		uint t;
-		uint N;
-		address asset_addr;
+	}
+	
+	struct FiatShamirChallenges {
+	    //Scalars
+	    uint y;
+	    uint z;
+	    uint x;
+	    uint x_ip;
+	    uint[] w;
+	    
+	    //Inverses
+	    uint yi;
+	    uint[] wi;
+	}
+	
+	struct VectorPowers {
+	    uint[] y;       //1, y, y^2, ... y^(N-1)
+	    uint[] yi;      //1, y^-1, y^-2, ... y^(1-N)
+	    uint[] two;     //1, 2, 4, ..., 2^(N-1)
 	}
 	
 	function GetAssetH(address asset_addr) internal view returns (G1Point.Data memory) {
@@ -43,209 +62,179 @@ library BulletProof {
 		}
 	}
 	
-	struct BPMemory {
-	    //Implicit Signature Parameters
-	    uint MN;
-	    
-	    //Fiat-Shamir
-	    uint y;
-	    uint z;
-	    uint x;
-	    uint x_ip;
-	    
-	    //Vectors
-	    uint[] vp2;
-	    uint[] vpy;
-	    uint[] vpyi;
-	    
-	    //Other terms
-	    uint k;
-	    uint[] w;
-	    uint[] w_inv;
-	    uint gScalar;
-	    uint hScalar;
-	    uint[] gScalars;
-	    uint[] hScalars;
-	    
-	    //Elliptic Curve Points and Parameters
-	    G1Point.Data H;
-	    
-	    //General purpose uint
-	    uint temp;
-	    uint temp2;
-	    uint[] temp_vec;
-	}
-		
-	function IsValid(Data memory proof) internal view returns (bool) {
-	    //Group memory variables together to reduce stack depth
-	    BPMemory memory mem;
-	    uint i;
-	    uint j;
-	    uint modulo;
-	    
+	///Bullet Proof Verification Functions
+	//Pre-check (i.e. check input proof for length, points on curve, etc.)
+	function PreCheck(Data memory proof) internal pure returns (uint8 failure_code) {
 		//Check inputs
-	    if (proof.V.length == 0) return false;
+		uint temp = proof.L.length; //logN
+		if (temp == 0) return 1;
+		if (proof.R.length != temp) return 2;
 		
-		mem.temp = proof.L.length; //logMN
-		if (mem.temp == 0) return false;
-		if (proof.R.length != mem.temp) return false;
-		mem.MN = (1 << mem.temp);
+		uint N = (1 << temp);
+		if (N == 0) return 3;
+		if (N > 64) return 4;
 		
-		if (proof.N == 0) return false;
-		if (proof.N > 64) return false;
-		if ((proof.N * proof.V.length) != mem.MN) return false;
+		//Check points
+		if (!proof.V.IsOnCurve()) return 5;
+		if (!proof.A.IsOnCurve()) return 6;
+		if (!proof.S.IsOnCurve()) return 7;
+		if (!proof.T1.IsOnCurve()) return 8;
+		if (!proof.T2.IsOnCurve()) return 9;
+		
+		for (uint i = 0; i < proof.L.length; i++) {
+		    if (!proof.L[i].IsOnCurve()) return uint8(2*i + 9);
+		    if (!proof.R[i].IsOnCurve()) return uint8(2*i + 10);
+		}
 	    
-		//Get H point for asset
-		mem.H = GetAssetH(proof.asset_addr);
+		//Success
+		return 0;
+	}
+	
+	//Generate Fiat Shamir Challenges
+	function GetFiatShamirChallenges(Data memory proof)
+	    internal pure returns (FiatShamirChallenges memory challenges)
+	{
+	    ///Do Fiat-Shamir
+		challenges.y = uint(keccak256(abi.encodePacked(proof.V.x, proof.V.y, proof.A.x, proof.A.y, proof.S.x, proof.S.y)));
+		challenges.z = uint(keccak256(abi.encodePacked(challenges.y)));
+		challenges.x = uint(keccak256(abi.encodePacked(challenges.z, proof.T1.x, proof.T1.y, proof.T2.x, proof.T2.y)));
+		challenges.x_ip = uint(keccak256(abi.encodePacked(challenges.x, proof.taux, proof.mu, proof.t)));
 		
-		///Calculate Fiat-Shamir
-		//y = hash(V[], A, S)
-		//z = hash(y)
-		//x = hash(z, T1, T2)
-		//x_ip = hash(x, taux, mu, t)
-		
-		//temp2 = serialize(V[])
-		mem.temp_vec = new uint[](proof.V.length*2);
-		j = 0;
-		for (i = 0; i < proof.V.length; i++) {
-		    mem.temp_vec[j] = proof.V[i].x;
-		    mem.temp_vec[j+1] = proof.V[i].y;
-		    j += 2;
+		//Calculate inner product challenges
+		challenges.w = new uint[](proof.L.length);
+		uint w_seed = challenges.x_ip;
+		for (uint i = 0; i < proof.L.length; i++) {
+		    w_seed = uint(keccak256(abi.encodePacked(w_seed, proof.L[i].x, proof.L[i].y, proof.R[i].x, proof.R[i].y)));
+		    challenges.w[i] = w_seed;
 		}
 		
-		mem.y = uint(keccak256(abi.encodePacked(mem.temp_vec, proof.A.x, proof.A.y, proof.S.x, proof.S.y)));
-		mem.z = uint(keccak256(abi.encodePacked(mem.y)));
-		mem.x = uint(keccak256(abi.encodePacked(mem.z, proof.T1.x, proof.T1.y, proof.T2.x, proof.T2.y)));
-		mem.x_ip = uint(keccak256(abi.encodePacked(mem.x, proof.taux, proof.mu, proof.t)));
-		
-		///Calculate vectors
-		//vp2 = 2^0, 2^1, 2^2, ..., 2^(N-1)
-		//vpy = y^0, y^1, y^2, ..., y^(MN-1)
-		//vpyi = y^0, y^-1, y^-2, ..., y^(1-MN)
-		mem.vp2 = Vector.Powers(2, proof.N);
-		mem.vpy = Vector.Powers(mem.y, mem.MN);
-		mem.vpyi = Vector.Powers(Scalar.Inverse(mem.y), mem.MN);
-		
-		///Calculate k
-		//k = -[z^2 * sum(vpy)] - sum[z^{j+2} * sum(vp2)]
-		modulo = G1Point.GetN();
-		
-		mem.temp = mulmod(mem.z, mem.z, modulo); //temp = z^2
-		mem.temp2 = (1 << mem.vp2.length) - 1; //sum(vp2)
-		mem.k = mulmod(mem.k, Vector.Sum(mem.vpy), modulo);
-		
-		for (i = 0; i < proof.V.length; i++) {
-		    mem.temp = mulmod(mem.temp, mem.z, modulo); //temp = z^(j+2)
-		    mem.k = addmod(mem.k, mulmod(mem.temp, mem.temp2, modulo), modulo);
-		}
-		
-		//Final negation
-		if (mem.k >= modulo) mem.k = mem.k % modulo;
-		mem.k = modulo - mem.k;
-		
-		///Calculate inner product challenges
-		mem.temp = mem.x_ip;
-		for (i = 0; i < proof.L.length; i++) {
-		    mem.temp = uint(keccak256(abi.encodePacked(mem.temp, proof.L[i].x, proof.L[i].y, proof.R[i].x, proof.R[i].y)));
-		    mem.w[i] = mem.temp;
-		}
-		
-		///Calculate inverse of inner product challenges
-		mem.w_inv = Vector.Inverse(mem.w);
-		
-		///Compute Base Point Scalars
-		mem.temp = mulmod(mem.z, mem.z, modulo); //z^(2 + i/N)
-		mem.gScalars = new uint[](mem.MN);
-		mem.hScalars = new uint[](mem.MN);
-		for (i = 0; i < mem.MN; i++) {
-		    mem.gScalar = proof.a;
-		    mem.hScalar = mulmod(proof.b, mem.vpyi[i], modulo);
-		    
-		    uint bit = (1 << (mem.MN - 1));
-		    for (j = 0; j < proof.L.length; j++) {
-		        if (i & bit == 0) {
-		            mem.gScalar = mulmod(mem.gScalar, mem.w_inv[j], modulo);
-		            mem.hScalar = mulmod(mem.hScalar, mem.w[j], modulo);
+		///Calculate inverse of y and w[]
+		//Compact w's and y.
+	    uint[] memory inverses = new uint[](1 + challenges.w.length);
+	    for (uint i = 0; i < challenges.w.length; i++) {
+	        inverses[i] = challenges.w[i];
+	    }
+	    inverses[challenges.w.length] = challenges.y;
+	    
+	    //Calculate Inverses using one modulo inverse
+	    inverses = Vector.Inverse(inverses);
+	    
+	    //Split up yi and wi
+	    challenges.wi = new uint[](challenges.w.length);
+	    for (uint i = 0; i < challenges.wi.length; i++) {
+	        challenges.wi[i] = inverses[i];
+	    }
+	    
+	    challenges.yi = inverses[challenges.w.length];
+	}
+	
+	//Generate vector powers of 2, y, and inv(y); N bits long
+	function CalculateVectorPowers(uint y, uint yi, uint N)
+	    internal pure returns (VectorPowers memory vp)
+	{
+	    vp.y = Vector.Powers(y, N);
+	    vp.yi = Vector.Powers(yi, N);
+	    vp.two = Vector.Powers(2, N);
+	}
+	
+	//Calculate Stage 1
+	//Check: y0*G + y1*Hasset = Y2 + Y3 + Y4
+	//i.e. taux*G + [t - (k+z*sum{yp}]*Hasset = z^2*V + x*T1 + x^2*T2
+	//Return true if equality holds, false if it does not
+	function CalculateStage1Check(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v, G1Point.Data memory Hasset)
+	    internal view returns (bool)
+    {
+        uint z2 = c.z.Square();
+        uint yp_sum = Vector.Sum(v.y);
+	    uint h_asset_scalar = Scalar.Add( z2.Multiply(yp_sum), z2.Multiply(c.z).Multiply(Vector.Sum(v.two)) ).Negate(); // k = -(z^2*vSum{vpy} + z^3*vSum{vp2})
+	    h_asset_scalar = proof.t.Subtract(h_asset_scalar.Add(c.z.Multiply(yp_sum)));
+	    
+        G1Point.Data memory left = G1Point.GetG1().Multiply(proof.taux).Add(Hasset.Multiply(h_asset_scalar));
+        G1Point.Data memory right = proof.V.Multiply(z2).Add(proof.T1.Multiply(c.x)).Add(proof.T2.Multiply(c.x.Square()));
+        
+        return left.Equals(right);
+    }
+	
+	//Calculate Stage 2
+	//Return Input scalars (z4, z5) and expected resulting G1Point (Pexp) for final exponentiation step
+	//Where multiexp([Gi, Hi], z4, z5) = Pexp
+	//Working toward verifying Z0 + z3*Hasset + Pexp = Z2 + z1*G
+	function CalculateStage2Check(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v, G1Point.Data memory Hasset)
+	    internal view returns (G1Point.Data memory Pexp, uint[] memory gi_scalars, uint[] memory hi_scalars)
+	{
+	    //multiexp([Gi, Hi], z4, z5) = -Z0 + z1*G + Z2 - z3*Hasset
+        
+        ///Find Pexp
+	    //Subtact Z0 = A + x*S
+	    Pexp = proof.A.Add(proof.S.Multiply(c.x)).Negate();
+	    
+	    //Add z1*G = mu*G
+	    Pexp = Pexp.Add(G1Point.GetG1().Multiply(proof.mu));
+	    
+	    //Add Z2 = sum{wi^2*Li + wi^-2*Ri}
+	    for (uint i = 0; i < proof.L.length; i++) {
+	        Pexp = Pexp.Add(proof.L[i].Multiply(c.w[i].Square()));
+	        Pexp = Pexp.Add(proof.R[i].Multiply(c.wi[i].Square()));
+	    }
+	    
+	    //Subtract z3*Hasset = (t-a*b)*x_ip
+	    Pexp = Pexp.Add(Hasset.Multiply(proof.t.Subtract(proof.a.Multiply(proof.b)).Multiply(c.x_ip)).Negate());
+	    
+        ///Calculate z4, z5
+        uint z2 = c.z.Square();
+        uint N = (1 << proof.L.length);
+        gi_scalars = new uint[](N);
+        hi_scalars = new uint[](N);
+        for (uint i = 0; i < N; i++) {
+            uint g_scalar = proof.a;
+            uint h_scalar = proof.b.Multiply(v.yi[i]);
+            
+            uint bit = (1 << (N - 1));
+            for (uint j = 0; j < proof.L.length; j++) {
+                if (i & bit == 0) {
+		            g_scalar = g_scalar.Multiply(c.wi[j]);
+		            h_scalar = h_scalar.Multiply(c.w[j]);
 		        }
 		        else {
-		            mem.gScalar = mulmod(mem.gScalar, mem.w[j], modulo);
-		            mem.hScalar = mulmod(mem.hScalar, mem.w_inv[j], modulo);
+		            g_scalar = g_scalar.Multiply(c.w[j]);
+		            h_scalar = h_scalar.Multiply(c.wi[j]);
 		        }
 		        
 		        bit >>= 1;
-		    }
-		    
-		    //Final gScalar
-		    mem.gScalars[i] = addmod(mem.gScalar, mem.z, modulo);
-		    
-		    mem.temp2 = mulmod(mem.temp, mem.vp2[i % proof.N], modulo);
-		    mem.temp2 = addmod(mem.temp2, mulmod(mem.z, mem.vpy[i], modulo), modulo);
-		    mem.temp2 = mulmod(mem.temp2, mem.vpyi[i], modulo);
-		    mem.hScalars[i] = addmod(mem.hScalar, modulo - mem.temp2, modulo);
-		    
-		    //Multiply temp with another z when moving to next commitment
-		    if ((i % proof.N) == (proof.N-1)) {
-		        mem.temp = mulmod(mem.temp, mem.z, modulo);
-		    }
-		}
-		
-		///Apply Stage 1 check
-		//Does {(taux)*G1 + (t - [k + z*sum(vpy)])*H} == {sum([z^(j+2)] * V) + (x)*T1 + (x^2)*T2} ??
-		
-		///Apply Stage 2 check
-		//Does {([t-a*b]*x_ip)*H + (A + x*S) + multiexp(Gi, gScalars) + multiexp(Hi, hScalars)} == {(mu)*G1} ??
-		
-		return true;
+            }
+            
+            //Finalize gi and hi scalars
+            gi_scalars[i] = g_scalar.Add(c.z).Negate();
+            
+            uint temp = z2.Multiply(v.two[i]);
+            temp = temp.Add(c.z.Multiply(v.y[i]));
+            temp = temp.Multiply(v.yi[i]);
+		    h_scalar = h_scalar.Subtract(temp);
+		    hi_scalars[i] = h_scalar.Negate();
+        }
 	}
 	
-	function GetHash(Data memory proof)
-		internal pure returns (bytes32 hash)
+	//Calculate Stage 3: MultiExp
+	//Check if multiexp([Gi, Hi], [z4, z5]) = Pexp
+	function CalculateMultiExp(G1Point.Data memory Pexp, uint[] memory gi_scalars, uint[] memory hi_scalars)
+	    internal view returns (bool)
 	{
-	    //Serialize non-string data
-		uint[] memory serialized = new uint[](7 + 2*(4 + proof.V.length + proof.L.length + proof.R.length));
-		
-		//Commitments
-		uint i = 0;
-		uint index = 0;
-		for (i = 0; i < proof.V.length; i++) {
-			serialized[index] = proof.V[i].x;
-			serialized[index+1] = proof.V[i].y;
-			index += 2;
-		}
-		
-		//Signature Data
-		serialized[index] = proof.A.x;
-		serialized[index+1] = proof.A.y;
-		serialized[index+2] = proof.S.x;
-		serialized[index+3] = proof.S.y;
-		serialized[index+4] = proof.T1.x;
-		serialized[index+5] = proof.T1.y;
-		serialized[index+6] = proof.T2.x;
-		serialized[index+7] = proof.T2.y;
-		index += 8;
-		
-		for (i = 0; i < proof.L.length; i++) {
-			serialized[index] = proof.L[i].x;
-			serialized[index+1] = proof.L[i].y;
-			index += 2;
-		}
-		
-		for (i = 0; i < proof.R.length; i++) {
-			serialized[index] = proof.R[i].x;
-			serialized[index+1] = proof.R[i].y;
-			index += 2;
-		}
-		
-		serialized[index] = proof.taux;
-		serialized[index+1] = proof.mu;
-		serialized[index+2] = proof.a;
-		serialized[index+3] = proof.b;
-		serialized[index+4] = proof.t;
-		serialized[index+5] = proof.N;
-		serialized[index+6] = uint(proof.asset_addr);
-		//index += 7;
-		
-		//Calculate Hash
-		return keccak256(abi.encodePacked(serialized));
+	    //Check inputs
+	    if (gi_scalars.length == 0) return false;
+	    if (gi_scalars.length != hi_scalars.length) return false;
+	    if (!Pexp.IsOnCurve()) return false;
+	    
+	    //Do multi exponentiation
+	    G1Point.Data memory right;
+	    for (uint i = 0; i < gi_scalars.length; i++) {
+	        //Gi = HashToPoint("Gi", [0...N-1])
+	        //Hi = HashToPoint("Hi", [0...N-1])
+			//Note, need to pre-calculate.  Costs are prohibitively high...
+	        
+	        right = right.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Gi", i)))).Multiply(gi_scalars[i]));
+	        right = right.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Hi", i)))).Multiply(hi_scalars[i]));
+	    }
+	    
+	    return Pexp.Equals(right);
 	}
 }
