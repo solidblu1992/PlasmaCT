@@ -3,16 +3,113 @@ from optimized_curve_algorithms import *
 
 Gi = []
 Hi = []
-def GenBasePoints(N=128):
+def GenBasePoints(N=64):
     Gi = [None]*N
     Hi = [None]*N
 
     for i in range(0, N):
-        Gi[i] = hash_str_to_point1("G" + str(i))
-        Hi[i] = hash_str_to_point1("H" + str(i))
+        hasher = sha3.keccak_256(bytes("Gi", "utf"))
+        hasher.update(int_to_bytes(i))
+        Gi[i] = point1_from_t(bytes_to_int(hasher.digest()))
+
+        hasher = sha3.keccak_256(bytes("Hi", "utf"))
+        hasher.update(int_to_bytes(i))
+        Hi[i] = point1_from_t(bytes_to_int(hasher.digest()))
 
     return (Gi, Hi)
-	
+
+def BasePointsToBytes(count=16, start=0):
+    assert(len(Gi) >= (start+count))
+    assert(len(Hi) >= (start+count))
+
+    b = b""
+    for i in range(start, start+count):
+        b += int_to_bytes(Gi[i][0].n)
+        b += int_to_bytes(Gi[i][1].n)
+        b += int_to_bytes(Hi[i][0].n)
+        b += int_to_bytes(Hi[i][1].n)
+
+    return b
+
+def hash_of_base_points(count=16, start=0):
+    b = BasePointsToBytes(count, start)
+    hasher = sha3.keccak_256(b)
+    return hasher.digest()
+
+def merkel_of_base_points(chunk_size=16):
+    assert(len(Gi) % chunk_size == 0)
+    assert(len(Hi) % chunk_size == 0)
+
+    #Assemble Level 0
+    print("Merkel Tree:")
+    print("Level 0")
+    
+    tree = []
+    chunks = [None] * (len(Gi) // chunk_size)
+    for i in range(0, len(chunks)):
+        chunks[i] = hash_of_base_points(chunk_size, i*chunk_size)
+        print(bytes_to_str(chunks[i]))
+
+    tree += [chunks]
+
+    #Merkelize chunks
+    level=1
+    while True:
+        print()
+        print("Level " + str(level))
+        new_chunks = [None] * (len(chunks) // 2)
+        for i in range(0, len(new_chunks)):
+            new_chunks[i] = hash_of_bytes(chunks[2*i] + chunks[2*i+1])
+            print(bytes_to_str(new_chunks[i]))
+
+        tree += [new_chunks]
+            
+        if (len(new_chunks) == 1):
+            return tree
+        else:
+            level += 1
+            chunks = new_chunks
+
+def merkel_chunk_proof(tree, chunk_number):
+    proof = [tree[0][chunk_number]]
+    for i in range(0, len(tree)-1):
+        hash_order = (chunk_number & 1)
+
+        if (hash_order == 0):
+            next_hash = tree[i][chunk_number + 1]
+        else:
+            next_hash = tree[i][chunk_number - 1]
+
+        proof += [(hash_order, next_hash)]
+        chunk_number // 2
+
+    proof += tree[-1]
+
+    return proof
+
+def check_merkel_proof(proof):
+    assert(len(proof) > 2)
+
+    leaf_hash = proof[0]
+    print(bytes_to_str(leaf_hash))
+    for i in range(1, len(proof)-1):
+        assert(type(proof[i]) == tuple)
+
+        #Even Leaf
+        if (proof[i][0] == 0):
+            leaf_hash = hash_of_bytes(leaf_hash + proof[i][1])
+        #Odd Leaf
+        else:
+            leaf_hash = hash_of_bytes(proof[i][1] + leaf_hash)            
+        
+    return (leaf_hash == proof[-1])
+        
+def PrintBasePoints_ETH(count=16, start=0):
+    print(bytes_to_str(BasePointsToBytes(count, start)))
+
+def PrintHashOfBasePoints(count=16, start=0):
+    print(bytes_to_str(hash_of_base_points(count,start)))
+    
 def SerializeBasePoints():
     print("Gi:")
     for i in range(0, len(Gi)):

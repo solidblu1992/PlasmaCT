@@ -145,6 +145,9 @@ def hash_of_str(s):
     x = bytes_to_int(hasher.digest())
     return x
 
+def hash_of_bytes(b):
+    return sha3.keccak_256(b).digest()
+
 def hash_of_large_int(i):
     #Get length in bytes
     l = len(hex(i)) - 2
