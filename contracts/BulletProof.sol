@@ -62,6 +62,51 @@ library BulletProof {
 		}
 	}
 	
+	/*
+     * GiHi Merkel Tree:
+     * Level 0: 0x85d8262392522426148186dac9768b3cc51d4b35eeba4c603a9ff11deb53976a
+     * 
+     * Level 1: 0x9004559687a1c006a20791488af47bd539cba563226348eb449c276a982ecf71
+     *          0x30110634e8710f1d38e92c18ff901a68be5538c784687c971d79743d0e20327f
+     * 
+     * Level 2: 0x3891a4d799d97bcbdee141a8ad6b4dc8bebc345e9e9e07e1c13f841f2f05c3d6
+     *          0x3de9bf738f68b9f86e96b5ef6460b7119c5edb414bcd241176f8a5cadd185f36
+     *          0x82d3b33167dcaca50b44d1a2a3c69f1eee250cc4618b7d82f835dca9b2db0d4e
+     *          0xe07bd318f8c2120950240117625beb19f68e2739d5ab312ccdec62b44ab9768a
+     * 
+     * Each Level 2 hash is the hash of 16 Gi and Hi pairs
+     * e.g. keccak256(Gi[0], Hi[0], Gi[1], Hi[1], ..., Gi[15], Hi[15])
+     */
+	function GetGiHiMerkelRoot() internal pure returns (bytes32 root) {
+	    root = 0x85d8262392522426148186dac9768b3cc51d4b35eeba4c603a9ff11deb53976a;
+	}
+	
+	function VerifyGiHiMerkelLeaf(bytes memory leaf_data, uint8 chunk_index, bytes32 level2_hash, bytes32 level1_hash) internal pure returns (bool) {
+	    //Check input
+	    if (chunk_index > 3) return false;
+	    
+	    //Calculate leaf hash (level 2)
+	    bytes32 leaf_hash = keccak256(abi.encodePacked(leaf_data));
+	    
+	    //Calculate level 1 hash
+	    if (chunk_index % 2 == 0) {
+	        leaf_hash = keccak256(abi.encodePacked(leaf_hash, level2_hash));
+	    }
+	    else {
+	        leaf_hash = keccak256(abi.encodePacked(level2_hash, leaf_hash));
+	    }
+	    
+	    //Calculate level 0 (root) hash
+	    if ((chunk_index / 2) % 2 == 0) {
+	        leaf_hash = keccak256(abi.encodePacked(leaf_hash, level1_hash));
+	    }
+	    else {
+	        leaf_hash = keccak256(abi.encodePacked(level1_hash, leaf_hash));
+	    }
+	    
+	    return (leaf_hash == GetGiHiMerkelRoot());
+	}
+	
 	///Bullet Proof Verification Functions
 	//Pre-check (i.e. check input proof for length, points on curve, etc.)
 	function PreCheck(Data memory proof) internal pure returns (uint8 failure_code) {
@@ -229,7 +274,6 @@ library BulletProof {
 	    for (uint i = 0; i < gi_scalars.length; i++) {
 	        //Gi = HashToPoint("Gi", [0...N-1])
 	        //Hi = HashToPoint("Hi", [0...N-1])
-			//Note, need to pre-calculate.  Costs are prohibitively high...
 	        
 	        right = right.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Gi", i)))).Multiply(gi_scalars[i]));
 	        right = right.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Hi", i)))).Multiply(hi_scalars[i]));
