@@ -84,7 +84,7 @@ def merkel_chunk_proof(chunk_number):
             next_hash = tree[i][chunk_number - 1]
 
         proof += [(hash_order, next_hash)]
-        chunk_number // 2
+        chunk_number >>= 1
 
     proof += tree[-1]
 
@@ -204,7 +204,7 @@ def pvMul(A, a):
 GiHiTree = GenBasePointsMerkel(16)
 
 if (True):
-    chunk_num = 0
+    chunk_num = 3
     
     print("leaf_bytes:")
     PrintChunk_ETH(chunk_num)
