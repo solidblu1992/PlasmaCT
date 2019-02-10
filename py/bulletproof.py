@@ -601,9 +601,12 @@ if (True):
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
     #Generate proof(s)
+    import random
     import time
     t = time.time()
-    bp = BulletProof.Generate([2]*m, [0]*m, [0]*m, N=bits, asset_addr=0)
+
+    v = [random.randint(0, 2**bits-1) for i in range(0,m)]
+    bp = BulletProof.Generate(v, [0]*m, [0]*m, N=bits, asset_addr=0)
     t = time.time() - t
     bp.Print_MEW()
     
@@ -618,19 +621,21 @@ if (True):
 
 #Multiple Bullet Proofs
 if (False):
-    p = 4   #Number of Proofs
-    m = 1   #Commitments per Proof
-    bits = 64
+    p = 1       #Number of Proofs
+    m = 32      #Commitments per Proof
+    bits = 1
     bp = [None]*p
 
     print()
     print("Generating " + str(p) + " Bullet Proof(s) each with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
     #Generate Proof(s)
+    import random
     import time
     t = time.time()
     for i in range(0, p):
-        bp[i] = BulletProof.Generate([5]*m, [17]*m, [0]*m, N=bits, asset_addr=0)
+        v = [random.randint(0, 2**bits-1) for i in range(0,m)]
+        bp[i] = BulletProof.Generate(v, [0]*m, [0]*m, N=bits, asset_addr=0)
     t = time.time() - t
     BulletProof.PrintMultiMEW(bp)
     print("\n")
