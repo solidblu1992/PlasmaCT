@@ -374,7 +374,16 @@ class BulletProof:
                         hScalar = sMul(hScalar, sInv(w[J]))
 
                 gScalar = sAdd(gScalar, z)
-                hScalar = sSub(hScalar, sMul(sAdd(sMul(z, vpy[i]), sMul(sPow(z, 2+(i//proof.N)), vp2[i%proof.N])), vpyi[i]))
+
+                #Single Bit Simplification
+                if (proof.N == 1):
+                    hScalar = sSub(hScalar, sAdd(z, sMul(sPow(z, 2+i), vpyi[i])))
+                #Single Commitment Simplification
+                elif (M == 1):
+                    hScalar = sSub(hScalar, sAdd(z, sMul(sMul(vp2[i], sPow(z, 2)), vpyi[i])))
+                #Full Equation
+                else:
+                    hScalar = sSub(hScalar, sAdd(z, sMul(sMul(vp2[i%proof.N], sPow(z, 2+(i//proof.N))), vpyi[i])))
 
                 #Update z4 and z5 checks for Stage 2
                 z4[i] = sSub(z4[i], sMul(gScalar, weight))
@@ -595,8 +604,8 @@ class BulletProof:
 
 #Single Bullet Proofs
 if (True):
-    bits = 64   #bits
-    m = 1       #commitments per proof
+    bits = 1    #bits
+    m = 32      #commitments per proof
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
