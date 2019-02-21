@@ -196,6 +196,14 @@ library G1Point {
         return Multiply(GetH(), s);
     }
     
+    function PointArrayToUintArray(Data[] memory points) internal pure returns (uint[] memory coords) {
+        coords = new uint[](points.length*2);
+        for (uint i = 0; i < points.length; i++) {
+            coords[2*i] = points[i].x;
+            coords[2*i+1] = points[i].y;
+        }
+    }
+    
     //Calculates a*A + b*B
     function Shamir(Data memory A, Data memory B, uint a, uint b) internal view returns (Data memory) {
         return Add(Multiply(A, a), Multiply(B, b));
