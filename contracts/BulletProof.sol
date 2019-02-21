@@ -127,8 +127,8 @@ library BulletProof {
 		if (!proof.T2.IsOnCurve()) return 9;
 		
 		for (uint i = 0; i < proof.L.length; i++) {
-		    if (!proof.L[i].IsOnCurve()) return uint8(2*i + 9);
-		    if (!proof.R[i].IsOnCurve()) return uint8(2*i + 10);
+		    if (!proof.L[i].IsOnCurve()) return uint8(2*i + 10);
+		    if (!proof.R[i].IsOnCurve()) return uint8(2*i + 11);
 		}
 	    
 		//Success
