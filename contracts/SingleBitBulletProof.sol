@@ -241,14 +241,14 @@ library SingleBitBulletProof {
 	    
         ///Calculate z4, z5
         uint z2 = c.z.Square();
-        uint N = (1 << proof.L.length);
-        gi_scalars = new uint[](N);
-        hi_scalars = new uint[](N);
-        for (uint i = 0; i < N; i++) {
+        uint MN = (1 << proof.L.length);
+        gi_scalars = new uint[](MN);
+        hi_scalars = new uint[](MN);
+        for (uint i = 0; i < MN; i++) {
             gi_scalars[i] = proof.a;
             hi_scalars[i] = proof.b.Multiply(v.yi[i]);
             
-            uint bit = (1 << (N - 1));
+            uint bit = (MN >> 1);
             for (uint j = 0; j < proof.L.length; j++) {
                 if (i & bit == 0) {
 		            gi_scalars[i] = gi_scalars[i].Multiply(c.wi[j]);
@@ -265,8 +265,8 @@ library SingleBitBulletProof {
             ///Finalize gi and hi scalars
             ///hi scalar calculation simplified for one bit commitments
             //N = 1, M > 1
-            //h[i] = (z^2)*(2^i)*(y^-i) + z - h_scalar
-            uint temp = z2.Multiply(v.two[i]).Multiply(v.yi[i]).Add(c.z);
+            //h[i] = (z^2)*(y^-i) + z - h_scalar
+            uint temp = z2.Multiply(v.yi[i]).Add(c.z);
             
             //For Reference:
             //Simplified for single commitment (N > 1, M = 1)
