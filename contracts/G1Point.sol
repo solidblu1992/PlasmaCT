@@ -173,7 +173,7 @@ library G1Point {
     ///Hash Functions
     //Calculates the keccak256 hash of a G1 Point
     function HashToScalar(Data memory A) internal pure returns (uint) {
-        return uint(keccak256(abi.encodePacked(A.x, A.y)));
+        return uint(keccak256(abi.encodePacked(A.x, A.y, "G1")));
     }
     
     //Uses the keccak256 hash of a G1 Point to generate a new point (e.g. H = HashToPoint(G1))
@@ -250,5 +250,24 @@ library G1Point {
         
         assembly { temp := mload(add(b, 64)) }
         point.y = temp;
+    }
+    
+    function DeserializeMultiple(bytes memory b) internal pure returns (Data[] memory point) {
+        //Check input
+        require(b.length % 64 == 0);
+        
+        //Fetch points
+        point = new Data[](b.length / 64);
+        
+        for (uint i = 0; i < point.length; i++) {
+            uint ptr = 32 + i*64;
+            
+            uint temp;
+            assembly { temp := mload(add(b, ptr)) }
+            point[i].x = temp;
+            
+            assembly { temp := mload(add(add(b, ptr), 32)) }
+            point[i].y = temp;
+        }
     }
 }
