@@ -7,6 +7,10 @@ contract TestSingleBitBulletProof {
     function DebugKill() public { selfdestruct(msg.sender); }
     function Echo() public pure returns (bool) { return true; }
     
+    function TestInverse(uint[] memory values) public pure returns (uint[] memory inverses) {
+        return Vector.Inverse(values);
+    }
+    
     function GetTestProof() internal pure returns (SingleBitBulletProof.Data memory proof) {
         proof.asset_addr = 0x0000000000000000000000000000000000000000;
         proof.V = new G1Point.Data[](4);
@@ -51,23 +55,57 @@ contract TestSingleBitBulletProof {
         //w[1]: 0x10d4c9146be9b034f6139277e676323d5714226c367724bcd91b7576256be116
 	}
 	
-	function Test1() public pure returns (uint8) {
+	function Test_PreCheck() public pure returns (uint8) {
 	    return SingleBitBulletProof.PreCheck(GetTestProof());
 	}
 	
-	function Test2() public pure returns (uint y, uint z, uint x, uint x_ip, uint yi, uint[] memory w, uint[] memory wi) {
-	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(GetTestProof());
+	function Test_FiatShamir() public pure returns (uint y, uint z, uint x, uint x_ip, uint yi, uint[] memory w, uint[] memory wi) {
+	    SingleBitBulletProof.Data memory proof = GetTestProof();
+	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
 	    y = c.y;
 	    z = c.z;
 	    x = c.x;
 	    x_ip = c.x_ip;
 	    yi = c.yi;
 	    
-	    w = new uint[](c.w.length);
-	    wi = new uint[](c.wi.length);
-	    for (uint i = 0; i < c.w.length; i++) {
-	        w[i] = c.w[i];
-	        wi[i] = c.wi[i];
-	    }
+	    w = Vector.Copy(c.w);
+	    wi = Vector.Copy(c.wi);
+	}
+	
+	function Test_Vectors() public pure returns (uint[] memory two, uint[] memory y, uint[] memory yi) {
+	    SingleBitBulletProof.Data memory proof = GetTestProof();
+	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
+	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
+	    two = Vector.Copy(v.two);
+	    y = Vector.Copy(v.y);
+	    yi = Vector.Copy(v.yi);
+	}
+	
+	function Test_GetAssetH() public view returns (uint x, uint y) {
+	    SingleBitBulletProof.Data memory proof = GetTestProof();
+	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	    x = Hasset.x;
+	    y = Hasset.y;
+	}
+	
+	function Test_Stage1Check() public view returns (bool) {
+	    SingleBitBulletProof.Data memory proof = GetTestProof();
+	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
+	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
+	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	    
+	    return SingleBitBulletProof.CalculateStage1Check(proof, c, v, Hasset);
+	}
+	
+	function Test_Stage2Check() public view returns (uint x, uint y, uint[] memory gi_scalars, uint[] memory hi_scalars) {
+	    SingleBitBulletProof.Data memory proof = GetTestProof();
+	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
+	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
+	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	    
+	    G1Point.Data memory P_expected;
+	    (P_expected, gi_scalars, hi_scalars) = SingleBitBulletProof.CalculateStage2Check(proof, c, v, Hasset);
+	    x = P_expected.x;
+	    y = P_expected.y;
 	}
 }
