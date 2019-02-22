@@ -1,5 +1,6 @@
 from bulletproofutil import *
 from TokenConstants import *
+BP_DEBUG_PRINTING = True
 
 class BulletProof:    
     def __init__(self, total_commit, power10, offset, value, bf, asset_addr, V, A, S, T1, T2, taux, mu, L, R, a, b, t, N):
@@ -113,11 +114,10 @@ class BulletProof:
 
         #Start hasher for Fiat-Shamir
 	#Hash V[], including array length
-        hasher = sha3.keccak_256(int_to_bytes(M*2, 32))
+        hasher = sha3.keccak_256()
         for j in range(0, M):
             hasher = add_point_to_hasher(hasher, V[j])
 
-        hasher = sha3.keccak_256(hasher.digest())
         hasher = add_point_to_hasher(hasher, A)
         hasher = add_point_to_hasher(hasher, S)
 	
@@ -231,7 +231,7 @@ class BulletProof:
             rounds = rounds + 1
 
         #Debug Printing
-        if (False):
+        if (BP_DEBUG_PRINTING):
             print()
             print("Bullet Proof Fiat-Shamir Challenges:")
             print("y:    " + hex(y))
@@ -304,12 +304,11 @@ class BulletProof:
 
             #Reconstruct Challenges
 	    #Hash V[], including array length
-            hasher = sha3.keccak_256(int_to_bytes(M*2, 32))
+            hasher = sha3.keccak_256()
             for j in range(0, M):
                 hasher = add_point_to_hasher(hasher, proof.V[j])
 
 	    #Continue Hasher
-            hasher = sha3.keccak_256(hasher.digest())
             hasher = add_point_to_hasher(hasher, proof.A)
             hasher = add_point_to_hasher(hasher, proof.S)
             y = bytes_to_int(hasher.digest()) % Ncurve
@@ -348,7 +347,7 @@ class BulletProof:
                 hasher = sha3.keccak_256(int_to_bytes(w[i], 32))
 
             #Debug Printing
-            if (False):
+            if (BP_DEBUG_PRINTING):
                 print()
                 print("Bullet Proof Fiat-Shamir Challenges:")
                 print("y:    " + hex(y))
@@ -426,7 +425,7 @@ class BulletProof:
         Check2 = add(Check2, pvExp(z4, z5))
 
         #More Debug Printing
-        if (False):
+        if (BP_DEBUG_PRINTING):
             print("y0: " + hex(y0))
             print("y1: " + hex(y1))
             print("Y2: " + hex(CompressPoint(Y2)))
@@ -602,10 +601,53 @@ class BulletProof:
                     print(", ", end="")
                 print(str(proofs[i].offset[j]), end="")
 
+    def PrintSolidityHardCoded(self):
+        print("proof.asset_addr = " + bytes_to_str(int_to_bytes(self.asset_addr, 20)) + ";")
+        
+        print("proof.V = new G1Point.Data[](" + str(len(self.V)) + ");")
+        for i in range(0, len(self.V)):
+            P = normalize(self.V[i])
+            print("proof.V[" + str(i) + "].x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+            print("proof.V[" + str(i) + "].y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        print("proof.L = new G1Point.Data[](" + str(len(self.L)) + ");")
+        for i in range(0, len(self.L)):
+            P = normalize(self.L[i])
+            print("proof.L[" + str(i) + "].x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+            print("proof.L[" + str(i) + "].y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        print("proof.R = new G1Point.Data[](" + str(len(self.R)) + ");")
+        for i in range(0, len(self.R)):
+            P = normalize(self.R[i])
+            print("proof.R[" + str(i) + "].x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+            print("proof.R[" + str(i) + "].y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        P = normalize(self.A)
+        print("proof.A.x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+        print("proof.A.y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        P = normalize(self.S)
+        print("proof.S.x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+        print("proof.S.y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        P = normalize(self.T1)
+        print("proof.T1.x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+        print("proof.T1.y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        P = normalize(self.T2)
+        print("proof.T2.x = " + bytes_to_str(int_to_bytes(P[0].n, 32)) + ";")
+        print("proof.T2.y = " + bytes_to_str(int_to_bytes(P[1].n, 32)) + ";")
+
+        print("proof.taux = " + bytes_to_str(int_to_bytes(self.taux, 32)) + ";")
+        print("proof.mu = " + bytes_to_str(int_to_bytes(self.mu, 32)) + ";")
+        print("proof.a = " + bytes_to_str(int_to_bytes(self.a, 32)) + ";")
+        print("proof.b = " + bytes_to_str(int_to_bytes(self.b, 32)) + ";")
+        print("proof.t = " + bytes_to_str(int_to_bytes(self.t, 32)) + ";")
+            
 #Single Bullet Proofs
 if (True):
     bits = 1    #bits
-    m = 32      #commitments per proof
+    m = 4       #commitments per proof
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
@@ -656,4 +698,3 @@ if (False):
     t = time.time() - t
     print("Verify time: " + str(t) + "s (" + str(t / (p * m)) + "s per commitment)")
     print()
-    
