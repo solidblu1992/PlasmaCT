@@ -179,11 +179,11 @@ library SingleBitBulletProof {
 	}
 	
 	//Generate vector powers of 2, y, and inv(y); N bits long
-	function CalculateVectorPowers(uint y, uint yi, uint N)
+	function GetVectorPowers(uint y, uint yi, uint N, uint M)
 	    internal pure returns (VectorPowers memory vp)
 	{
-	    vp.y = Vector.Powers(y, N);
-	    vp.yi = Vector.Powers(yi, N);
+	    vp.y = Vector.Powers(y, N*M);
+	    vp.yi = Vector.Powers(yi, N*M);
 	    vp.two = Vector.Powers(2, N);
 	}
 	
@@ -245,18 +245,18 @@ library SingleBitBulletProof {
         gi_scalars = new uint[](N);
         hi_scalars = new uint[](N);
         for (uint i = 0; i < N; i++) {
-            uint g_scalar = proof.a;
-            uint h_scalar = proof.b.Multiply(v.yi[i]);
+            gi_scalars[i] = proof.a;
+            hi_scalars[i] = proof.b.Multiply(v.yi[i]);
             
             uint bit = (1 << (N - 1));
             for (uint j = 0; j < proof.L.length; j++) {
                 if (i & bit == 0) {
-		            g_scalar = g_scalar.Multiply(c.wi[j]);
-		            h_scalar = h_scalar.Multiply(c.w[j]);
+		            gi_scalars[i] = gi_scalars[i].Multiply(c.wi[j]);
+		            hi_scalars[i] = hi_scalars[i].Multiply(c.w[j]);
 		        }
 		        else {
-		            g_scalar = g_scalar.Multiply(c.w[j]);
-		            h_scalar = h_scalar.Multiply(c.wi[j]);
+		            gi_scalars[i] = gi_scalars[i].Multiply(c.w[j]);
+		            hi_scalars[i] = hi_scalars[i].Multiply(c.wi[j]);
 		        }
 		        
 		        bit >>= 1;
@@ -278,8 +278,8 @@ library SingleBitBulletProof {
             //uint temp = c.z.Power(2+i/proof.N).Multiply(v.two[i%proof.N]).Multiply(v.yi[i]).Add(c.z);
 		    
 		    //Subtraction is common to all variants
-            gi_scalars[i] = g_scalar.Add(c.z).Negate();
-		    hi_scalars[i] = temp.Subtract(h_scalar);
+            gi_scalars[i] = gi_scalars[i].Add(c.z).Negate();
+		    hi_scalars[i] = temp.Subtract(hi_scalars[i]);
         }
 	}
 	
