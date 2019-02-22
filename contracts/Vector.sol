@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 import "./Scalar.sol";
 
 library Vector {
-    uint private constant modulo = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47;
+    uint private constant modulo = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
     
     //Create vector = v^0, v^1, v^2, ..., v^(lenght-1)
 	function Powers(uint v, uint length) internal pure returns (uint[] memory vec) {
