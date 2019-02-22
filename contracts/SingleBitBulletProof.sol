@@ -144,16 +144,17 @@ library SingleBitBulletProof {
 	    internal pure returns (FiatShamirChallenges memory challenges)
 	{
 	    ///Do Fiat-Shamir
-		challenges.y = uint(keccak256(abi.encodePacked(G1Point.PointArrayToUintArray(proof.V), proof.A.x, proof.A.y, proof.S.x, proof.S.y)));
-		challenges.z = uint(keccak256(abi.encodePacked(challenges.y)));
-		challenges.x = uint(keccak256(abi.encodePacked(challenges.z, proof.T1.x, proof.T1.y, proof.T2.x, proof.T2.y)));
-		challenges.x_ip = uint(keccak256(abi.encodePacked(challenges.x, proof.taux, proof.mu, proof.t)));
+	    uint Ncurve = G1Point.GetN();
+		challenges.y = uint(keccak256(abi.encodePacked(G1Point.PointArrayToUintArray(proof.V), proof.A.x, proof.A.y, proof.S.x, proof.S.y))) % Ncurve;
+		challenges.z = uint(keccak256(abi.encodePacked(challenges.y))) % Ncurve;
+		challenges.x = uint(keccak256(abi.encodePacked(challenges.z, proof.T1.x, proof.T1.y, proof.T2.x, proof.T2.y))) % Ncurve;
+		challenges.x_ip = uint(keccak256(abi.encodePacked(challenges.x, proof.taux, proof.mu, proof.t))) % Ncurve;
 		
 		//Calculate inner product challenges
 		challenges.w = new uint[](proof.L.length);
 		uint w_seed = challenges.x_ip;
 		for (uint i = 0; i < proof.L.length; i++) {
-		    w_seed = uint(keccak256(abi.encodePacked(w_seed, proof.L[i].x, proof.L[i].y, proof.R[i].x, proof.R[i].y)));
+		    w_seed = uint(keccak256(abi.encodePacked(w_seed, proof.L[i].x, proof.L[i].y, proof.R[i].x, proof.R[i].y))) % Ncurve;
 		    challenges.w[i] = w_seed;
 		}
 		
