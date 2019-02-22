@@ -32,8 +32,8 @@ library G1Point {
 	//2nd Generator point where gamma is unknown for the equation: H = gammma*G1
 	function GetH() internal pure returns (Data memory H) {
 	    //H = HashToPoint(GetG1());
-	    H = Data(   0x277a420332215ead37ba61fee84f0d216a345e762af8efd15453697170b3cdc5,
-	                0x1b312cd37d4ad474fc299c9689fc0f347a2ec2b5b474a41b343142ee5fdd097a  );
+	    H = Data(   0x2854ddec56b97fb3a6d501b8a6ff07891ce7aeb22c1cc74cf0a18ebc3f15220b,
+	                0x23a967b0d240d4264fea929d6a02ba4b7c612c0a4ef611e92eb011aa854cdbf7  );
 	}
 	
 	//Special Generator Points used for Bullet Proofs
