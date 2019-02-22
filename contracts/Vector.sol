@@ -5,6 +5,14 @@ import "./Scalar.sol";
 library Vector {
     uint private constant modulo = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001;
     
+    //Copy vector
+    function Copy(uint[] memory vec1) internal pure returns (uint[] memory vec2) {
+        vec2 = new uint[](vec1.length);
+        for (uint i = 0; i < vec1.length; i++) {
+            vec2[i] = vec1[i];
+        }
+    }
+    
     //Create vector = v^0, v^1, v^2, ..., v^(lenght-1)
 	function Powers(uint v, uint length) internal pure returns (uint[] memory vec) {
 	    require(length > 0);
