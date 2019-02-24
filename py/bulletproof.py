@@ -392,7 +392,7 @@ class BulletProof:
                 #Full Equation
                 #z5[i] += [(z^[2+i/N])*(2^[i%N])*(y^-i) + z - h_scalar]*weight
                 else:
-                    temp = sMul(sMul(vp2[i%proof.N], sPow(z, 2+(i//proof.N))))
+                    temp = sMul(vp2[i%proof.N], sPow(z, 2+(i//proof.N)))
 
                 #Step common to all [temp*(y^-i) + z - h_scalar]
                 temp = sSub(sAdd(sMul(temp, vpyi[i]), z), hScalar)
@@ -659,8 +659,8 @@ class BulletProof:
             
 #Single Bullet Proofs
 if (True):
-    bits = 1    #bits
-    m = 8       #commitments per proof
+    bits = 32   #bits
+    m = 2       #commitments per proof
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
