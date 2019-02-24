@@ -235,7 +235,7 @@ library SingleBitBulletProof {
 	function CalculateStage2Check(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v, G1Point.Data memory Hasset)
 	    internal view returns (G1Point.Data memory Pexp, uint[] memory gi_scalars, uint[] memory hi_scalars)
 	{
-	    //multiexp([Gi, Hi], z4, z5) = -Z0 + z1*G + Z2 - z3*Hasset
+	    //multiexp([Gi, Hi], z4, z5) = -Z0 + z1*G - Z2 - z3*Hasset
         
         ///Find Pexp
 	    //Subtact Z0 = A + x*S
@@ -244,17 +244,17 @@ library SingleBitBulletProof {
 	    //Add z1*G = mu*G
 	    Pexp = Pexp.Add(G1Point.GetG1().Multiply(proof.mu));
 	    
-	    //Add Z2 = sum{wi^2*Li + wi^-2*Ri}
+	    //Subtract Z2 = sum{wi^2*Li + wi^-2*Ri}
 	    for (uint i = 0; i < proof.L.length; i++) {
-	        Pexp = Pexp.Add(proof.L[i].Multiply(c.w[i].Square()));
-	        Pexp = Pexp.Add(proof.R[i].Multiply(c.wi[i].Square()));
+	        Pexp = Pexp.Subtract(proof.L[i].Multiply(c.w[i].Square()));
+	        Pexp = Pexp.Subtract(proof.R[i].Multiply(c.wi[i].Square()));
 	    }
 	    
 	    //Subtract z3*Hasset = (t-a*b)*x_ip
-	    Pexp = Pexp.Add(Hasset.Multiply(proof.t.Subtract(proof.a.Multiply(proof.b)).Multiply(c.x_ip)).Negate());
+	    Pexp = Pexp.Subtract(Hasset.Multiply(proof.t.Subtract(proof.a.Multiply(proof.b)).Multiply(c.x_ip)));
 	    
         ///Calculate z4, z5
-        uint z2 = c.z.Square();
+        uint zk = c.z;
         uint MN = (1 << proof.L.length);
         gi_scalars = new uint[](MN);
         hi_scalars = new uint[](MN);
@@ -277,23 +277,28 @@ library SingleBitBulletProof {
             }
             
             ///Finalize gi and hi scalars
+            ///gi scalar is simple
+            gi_scalars[i] = gi_scalars[i].Add(c.z).Negate();
+            
             ///hi scalar calculation simplified for one bit commitments
+            uint temp;
+            
             //N = 1, M > 1
-            //h[i] = (z^2)*(y^-i) + z - h_scalar
-            uint temp = z2.Multiply(v.yi[i]).Add(c.z);
+            //h[i] = (z^[2+i])*(y^-i) + z - h_scalar
+            zk = zk.Multiply(c.z);
+            temp = zk;
             
             //For Reference:
             //Simplified for single commitment (N > 1, M = 1)
             //h[i] = (z^[2+i])*(y^-i) + z - h_scalar
-            //uint temp = c.z.Power(2+i).Multiply(v.yi[i]).Add(c.z);
+            //temp = v.two[i].Multiply(c.z.Square());
             
             //Full Calculation (N > 1, M > 1)
             //h[i] = (z^[2+i/N])*(2^[i%N])*(y^-i) + z - h_scalar
-            //uint temp = c.z.Power(2+i/proof.N).Multiply(v.two[i%proof.N]).Multiply(v.yi[i]).Add(c.z);
+            //temp = c.z.Power(2+i/proof.N).Multiply(v.two[i%proof.N]);
 		    
-		    //Subtraction is common to all variants
-            gi_scalars[i] = gi_scalars[i].Add(c.z).Negate();
-		    hi_scalars[i] = temp.Subtract(hi_scalars[i]);
+		    //Multiplication of yi, addition of z, and subtraction is common to all variants
+		    hi_scalars[i] = temp.Multiply(v.yi[i]).Add(c.z).Subtract(hi_scalars[i]);
         }
 	}
 	
