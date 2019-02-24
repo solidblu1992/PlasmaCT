@@ -195,6 +195,11 @@ library G1Point {
 
     ///Hash Functions
     //Calculates the keccak256 hash of a G1 Point
+    function HashOfPoint(Data memory A) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(A.x, A.y));
+    }
+    
+    //Uses keccak256 hash of a G1 Point to generate a new scalar
     function HashToScalar(Data memory A) internal pure returns (uint) {
         return uint(keccak256(abi.encodePacked(A.x, A.y, "G1")));
     }
