@@ -332,11 +332,15 @@ class BulletProof:
             vp2 = vPow(2, proof.N)
             vpy = vPow(y, M*proof.N)
             vpyi = vPow(sInv(y), M*proof.N)
-            
-            k = sMul(sSq(z), vSum(vpy))
-            for j in range(1, M+1):
-                k = sAdd(k, sMul(sPow(z, j+2), vSum(vp2)))
-            k = sNeg(k)
+
+            #k = -([z^3 + z^4 + ... + z^(2+M)]*sum{vp2} + (z^2)*sum{vpy})
+            zk = sSq(z)
+            k = 0
+            for j in range(0, M):
+                zk = sMul(zk, z)
+                k = sAdd(k, zk)
+
+            k = sNeg(sAdd(sMul(k, vSum(vp2)), sMul(sSq(z), vSum(vpy))))
 
             #Compute inner product challenges
             w = [0]*logMN
