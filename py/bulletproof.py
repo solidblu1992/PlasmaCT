@@ -1,6 +1,6 @@
 from bulletproofutil import *
 from TokenConstants import *
-BP_DEBUG_PRINTING = True
+BP_DEBUG_PRINTING = False
 
 class BulletProof:    
     def __init__(self, total_commit, power10, offset, value, bf, asset_addr, V, A, S, T1, T2, taux, mu, L, R, a, b, t, N):
@@ -329,11 +329,11 @@ class BulletProof:
             hasher = sha3.keccak_256(int_to_bytes(x_ip, 32))
 
             #Calculate k
+            #k = -([z^3 + z^4 + ... + z^(2+M)]*sum{vp2} + (z^2)*sum{vpy})
             vp2 = vPow(2, proof.N)
             vpy = vPow(y, M*proof.N)
             vpyi = vPow(sInv(y), M*proof.N)
-
-            #k = -([z^3 + z^4 + ... + z^(2+M)]*sum{vp2} + (z^2)*sum{vpy})
+            
             zk = sSq(z)
             k = 0
             for j in range(0, M):
@@ -378,19 +378,28 @@ class BulletProof:
 
                 gScalar = sAdd(gScalar, z)
 
+                #Finish off hScalar
+                temp = 0
+                
                 #Single Bit Simplification
+                #z5[i] += [(z^[2+i])*(y^-i) + z - h_scalar]*weight
                 if (proof.N == 1):
-                    hScalar = sSub(hScalar, sAdd(z, sMul(sPow(z, 2+i), vpyi[i])))
+                    temp = sPow(z, 2+i)
                 #Single Commitment Simplification
+                #z5[i] += [(z^[2+i])*(y^-i) + z - h_scalar]*weight
                 elif (M == 1):
-                    hScalar = sSub(hScalar, sAdd(z, sMul(sMul(vp2[i], sPow(z, 2)), vpyi[i])))
+                    temp = sMul(vp2[i], sPow(z, 2))
                 #Full Equation
+                #z5[i] += [(z^[2+i/N])*(2^[i%N])*(y^-i) + z - h_scalar]*weight
                 else:
-                    hScalar = sSub(hScalar, sAdd(z, sMul(sMul(vp2[i%proof.N], sPow(z, 2+(i//proof.N))), vpyi[i])))
+                    temp = sMul(sMul(vp2[i%proof.N], sPow(z, 2+(i//proof.N))))
+
+                #Step common to all [temp*(y^-i) + z - h_scalar]
+                temp = sSub(sAdd(sMul(temp, vpyi[i]), z), hScalar)
 
                 #Update z4 and z5 checks for Stage 2
                 z4[i] = sSub(z4[i], sMul(gScalar, weight))
-                z5[i] = sSub(z5[i], sMul(hScalar, weight))
+                z5[i] = sAdd(z5[i], sMul(temp, weight))
 
             #Apply weight to remaining checks (everything but z4 and z5)
             #Stage 1 Checks
@@ -651,7 +660,7 @@ class BulletProof:
 #Single Bullet Proofs
 if (True):
     bits = 1    #bits
-    m = 4       #commitments per proof
+    m = 8       #commitments per proof
     print()
     print("Generating Single Bullet Proof with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
 
