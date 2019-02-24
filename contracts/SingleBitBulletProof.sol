@@ -194,9 +194,23 @@ library SingleBitBulletProof {
 	function CalculateStage1Check(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v, G1Point.Data memory Hasset)
 	    internal view returns (bool)
     {
-        uint zk = c.z.Square();
+        
         uint yp_sum = Vector.Sum(v.y);
-	    uint h_asset_scalar = Scalar.Add( zk.Multiply(yp_sum), zk.Multiply(c.z).Multiply(Vector.Sum(v.two)) ).Negate(); // k = -(z^2*vSum{vpy} + z^3*vSum{vp2})
+        
+        //Find k first
+        // k = -(z^3*vSum{vp2} + z^2*vSum{vpy})
+        uint zk = c.z.Square();
+	    uint h_asset_scalar = 0;
+	    for (uint i = 0; i < proof.V.length; i++) {
+	        zk = zk.Multiply(c.z);  //z^3, z^4, ..., z^(2+M)
+	        h_asset_scalar = h_asset_scalar.Add(zk);
+	    }
+	    
+	    //Reset zk to z^2
+	    zk = c.z.Square();
+	    h_asset_scalar = h_asset_scalar.Multiply(Vector.Sum(v.two)).Add(zk.Multiply(yp_sum)).Negate();
+	    
+	    //Finish off h_asset_scalar
 	    h_asset_scalar = proof.t.Subtract(h_asset_scalar.Add(c.z.Multiply(yp_sum)));
 	    
         G1Point.Data memory left = G1Point.GetG1().Multiply(proof.taux).Add(Hasset.Multiply(h_asset_scalar));
