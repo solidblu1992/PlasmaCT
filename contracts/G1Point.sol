@@ -24,6 +24,11 @@ library G1Point {
 	    return P;
 	}
 	
+	//Zero Point
+	function GetZeroPoint() internal pure returns (Data memory Zero) {
+	    Zero = Data(0, 0);
+	}
+	
 	//alt_bn_128 Generator Point
 	function GetG1() internal pure returns (Data memory G1) {
 	    G1 = Data(1, 2);
@@ -89,6 +94,11 @@ library G1Point {
 	    return (left == right);
 	}
 	
+	//Checks to see if point is zero
+	function IsZero(Data memory point) internal pure returns (bool) {
+	    return (point.x == 0 && point.y == 0);
+	}
+	
 	//Check to see if both G1Points are equal
 	function Equals(Data memory A, Data memory B) internal pure returns (bool) {
 	    return ((A.x == B.x) && (A.y == B.y));
@@ -101,6 +111,10 @@ library G1Point {
 	
 	//Calculates G1 Point addition using precompile
 	function Add(Data memory A, Data memory B) internal view returns (Data memory C)	{
+	    //Trivial Cases, no precompile call required
+	    if (IsZero(A)) return B;
+	    if (IsZero(B)) return A;
+	    
 	    uint[] memory data = new uint[](4);
 	    data[0] = A.x;
 	    data[1] = A.y;
@@ -120,6 +134,10 @@ library G1Point {
 	
 	//Calculates G1 Point scalar multiplication using precompile
 	function Multiply(Data memory A, uint s) internal view returns (Data memory C) {
+	    //Trivial Cases
+	    if (IsZero(A) || s == 1) return A;
+	    if (s == 0) return GetZeroPoint();
+	    
 	    uint[] memory data = new uint[](3);
 	    data[0] = A.x;
 	    data[1] = A.y;
