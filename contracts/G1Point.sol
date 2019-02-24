@@ -132,6 +132,11 @@ library G1Point {
 	    C = Data(data[0], data[1]);
 	}
 	
+	//Point Subraction
+	function Subtract(Data memory A, Data memory B) internal view returns (Data memory C)	{
+	    return Add(A, Negate(B));
+	}
+	
 	//Calculates G1 Point scalar multiplication using precompile
 	function Multiply(Data memory A, uint s) internal view returns (Data memory C) {
 	    //Trivial Cases
