@@ -14,45 +14,37 @@ contract TestSingleBitBulletProof {
     function GetTestProof() internal pure returns (SingleBitBulletProof.Data memory proof) {
         proof.asset_addr = 0x0000000000000000000000000000000000000000;
         proof.V = new G1Point.Data[](4);
-        proof.V[0].x = 0x1b664bd98630ef642fd33826c4b0890d3f0407b6591bbfe7bbfda1a95d9a2025;
-        proof.V[0].y = 0x06842488d88d2f14dc499b5faa27245aa3a4a9b62bb8837f5eb717de4f8def6c;
-        proof.V[1].x = 0x10d95ae7d9a01306d856b9994d59c98e8e1a317cff725113a4e53759eebfcf03;
-        proof.V[1].y = 0x175b0cf16cdb4f8173e6f843cfffa825edf47553e9eb2d600a248582be36c8ac;
-        proof.V[2].x = 0x11df96fa49afbdb82d4b9ddb3fddd0ee6cafed3a19e157b5627631f835d6cbfa;
-        proof.V[2].y = 0x0f985a53e45a2a1b2a3a0571b0d50cb70139740c28e08f170592ad4c78bdce0e;
-        proof.V[3].x = 0x1353ed2a37224aed56c5d884c84031786337560417d6bb4418a30d520407d630;
-        proof.V[3].y = 0x1c2a36ff8fa1118c10657c2d06f211f2ef9a16037c47b28a74d4ddbb5a36610f;
+        proof.V[0].x = 0x055c1d11aaf30bf4ff028194b8284568f003fb5b2ce2876416a7b17d1d82d0e9;
+        proof.V[0].y = 0x26a16415aaa756677a11215e24efd830c6419359981b447b0928e575cd45852e;
+        proof.V[1].x = 0x0682834c6ca0c63fc71089b3e502ab5fba470036a203a5808bf158cf30e4e172;
+        proof.V[1].y = 0x02290703fcdb9523503906590cc67ab54c1f594eab82e0c79545e71485c1a2a5;
+        proof.V[2].x = 0x2d00a57d9d58b96a91ac19b321f80d9268f0bdad78185fa45071d657100b9875;
+        proof.V[2].y = 0x081bc73dfe47932eca2b478aa18a735417e2e60c0cca2a49a22489071f889a32;
+        proof.V[3].x = 0x0274a3aab7876b6f235dbcd4c2ab30f024598a1b74f724c9a870c0b9c39eef96;
+        proof.V[3].y = 0x2a09ef7365209002de317fbc98b9dc5b655763114aa96cef37982432f065d2fd;
         proof.L = new G1Point.Data[](2);
-        proof.L[0].x = 0x24267301366bd183351851d983076ba30e0ee9d2b3c684b98b81064fc1b5bd9e;
-        proof.L[0].y = 0x159754b4fffd87f3ce9cf7672118b22e5ade858cebf308e02eb39132409d4360;
-        proof.L[1].x = 0x231deb87cdfe223b59977a17c434d7eb066232306daa993c965c160399a2c4de;
-        proof.L[1].y = 0x096a1de7a4c671aabbde7872b5c0b306e151f3855dc5c8b6c5acf90b0766fd81;
+        proof.L[0].x = 0x1abdc43f4b97ca540375182c14323899f54e5728215ed923dce44f422dfd00ce;
+        proof.L[0].y = 0x259877ccdeb7e9f09e0233657e2cb7f7fa39bcc869fce6f5a3acd4163f4a6fb3;
+        proof.L[1].x = 0x2ddf1c144102900e6df62907504342fba8e1a73e37f7784accfdd178c9f24e67;
+        proof.L[1].y = 0x0a1f02fa9a379c65d8a7719e283bec21d38ec15586332e587a12ef27a68577c3;
         proof.R = new G1Point.Data[](2);
-        proof.R[0].x = 0x26055132da72976bfa98c86de065f1b5315df24e42c42d7e9c02020fceff32a6;
-        proof.R[0].y = 0x00eb0a66765c7b1dbecab40182ad1a9303a4cb6cbae0d26ce73afe0341bde597;
-        proof.R[1].x = 0x214a87c2995f94228dec4409e82f2a70405e559299fca33d0cffeb35441cbc79;
-        proof.R[1].y = 0x16fa383c60575f9eb6383b75b3eaaa5eaf7ce48adff03dcb29aac4a9d4dde7bf;
-        proof.A.x = 0x1670ae612910bd53b5ae4c19fd768150d6cf421775a3a3045e8c2d703c1ad243;
-        proof.A.y = 0x067b51b789a90870fdd6a392c33b9c283f96785f41c3a569d7285ee52872672a;
-        proof.S.x = 0x25eded14cf214f3e826408c3140f18098ea60a53d5f7c8065602a4c23bce4323;
-        proof.S.y = 0x054fc9bd338714c29187bf8db8997f152fa826869e994656a01aec66b70475ae;
-        proof.T1.x = 0x070d3b9facdab60cc8174db5b7e138a2467020213a867ed0b7ad3e7b176aa1b9;
-        proof.T1.y = 0x0f1742a8038baba32413b9404ff0be7f163d5c911faf8d9f73d4426544c2e3c5;
-        proof.T2.x = 0x03863822767eebfad8c423b02b4f75c4c75ea83b00cd1f41f8083c05855bd101;
-        proof.T2.y = 0x19b994c8df3e4aacf95dc37a8c29b5c2215db25e0b56626c2b5b550f2de53798;
-        proof.taux = 0x27cee75b73adfa5b0f36ddc49891ffd634f8c24796389f2ab82a2f2c3822d9df;
-        proof.mu = 0x1b000aba558a4281cc0c2ac5ba1a8f460a0b9ac24cfa47249245dbd953554779;
-        proof.a = 0x00e3f6a637fe237a604f2f8e3c1779fa54ebd12a0b5ea06ea741d13d19310e26;
-        proof.b = 0x10962fafe70f663eb242c847d7d4cd31668a4a3c9ae0a6c209da45e68c0da622;
-        proof.t = 0x0fbc586305621f81b6a3505256319754505637a7e4205279a97db3a6041d50ba;
-        
-        ///Resulting FiatShamirChallenges:
-        //y:    0x21e121c3bfc12f8ee9e43eecd952570fd658df0d7504209d1575599aa9ee308e
-        //z:    0x1edad874a34416ae848ab4701ac6193154232eece7f7efe4c3f65fa40c8d734f
-        //x:    0x2726df4ed34800b2c29a6f8f357f340e41f5b64e09ce01243ad27dd307e9c869
-        //x_ip: 0x259e957cd5a77d0ac409e43fb87e16d185f77c52c80d4f6f87198c111d056fbc
-        //w[0]: 0x197032fb24fd64eb6ce16e3ad99d44fcd3c26aa0a169fc2a1520c6c22b59f443
-        //w[1]: 0x10d4c9146be9b034f6139277e676323d5714226c367724bcd91b7576256be116
+        proof.R[0].x = 0x29aed92b200b459cdb75b28f7c2c3720130198246d7f5bd213f3ca414fa35922;
+        proof.R[0].y = 0x2bef868764ffd4a816460512c9d633ce8c3a1dc06d20ff5bddf6c60742d6a86a;
+        proof.R[1].x = 0x0f6a4e34442347dfd1a8c1e82c6ba13d4420b44c47c4222b3b1135867314dfcc;
+        proof.R[1].y = 0x1e444075e72dff4981408869f7267124cfca977ca1c3bc78d4ee2a3e17d42345;
+        proof.A.x = 0x26d80c58b48ab3abfba8e39a974a9fc87257745cee8d2945c50a2e175659c4e8;
+        proof.A.y = 0x2881cfb197656e06d8a131a41a8dd8ef137a00bdd87469a8dc73373931213fee;
+        proof.S.x = 0x0a2f3974920b9d4a6ee4f88c72f86d89919273ae14ba2cbfb111a893bd894675;
+        proof.S.y = 0x09eb7819757095dde2bbf6ca2a8f98ebd7951204959619ad16d484ccb8c97a56;
+        proof.T1.x = 0x06d0090c4b2b067968f08e9d3f8e76d4ca64ad9713e22d54cad000530167e1c8;
+        proof.T1.y = 0x1dfbe853d7e543a3b747f73dcc6dc0ed4dd053e5951f4588ce9380f9b26cdf05;
+        proof.T2.x = 0x211741c966504d8c738ff0df804dec95718b71ceb86ec55f92a5eed829bf71ca;
+        proof.T2.y = 0x19c4e08b3455c3f1b54c104a17c21f7bd5f6a11793b1e5cfd5fc9c6035ace5a0;
+        proof.taux = 0x04c4467b214994b3ff11d18064cb8808b277809bc6ea03241b51c368858febe9;
+        proof.mu = 0x0e80f920f97256c2f0a5b2ea4d8e61e4b5b6296507108f2c4f3f3cfe4a3a6888;
+        proof.a = 0x27da28e4f332c2ade531110b8b258971e550ad82399f5fcea4e0c2fb4e0442b5;
+        proof.b = 0x2f63aaedc2c5269f77e2c589ca04d83e67aab2a158a9d939a905a7693c136761;
+        proof.t = 0x12e0ae8f3eeba52e207728642297efb52cb9d85e458fdbc24a94bdf939901202;
 	}
 	
 	function Test_PreCheck() public pure returns (uint8) {
