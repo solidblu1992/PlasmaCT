@@ -149,7 +149,7 @@ contract TestBulletProof {
 	    (gi_scalars, hi_scalars) = BulletProof.CalculateStage2_MultiExpScalars(proof, c, v);
 	    P_expected = BulletProof.CalculateStage2_ExpectedMultiExpResult(proof, c, Hasset);
 	    
-	    return P_expected.Equals(BulletProof.CalculateMultiExp(P_expected, gi_scalars, hi_scalars, 0, gi_scalars.length));
+	    return P_expected.Equals(BulletProof.CalculateMultiExp(G1Point.GetZeroPoint(), gi_scalars, hi_scalars, 0, gi_scalars.length));
 	}
 
     //Gas Test Functions
