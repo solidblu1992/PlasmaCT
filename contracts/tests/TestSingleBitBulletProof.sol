@@ -1,8 +1,10 @@
 pragma solidity ^0.5.0;
 
-import "./SingleBitBulletProof.sol";
+import "./BulletProof.sol";
 
-contract TestSingleBitBulletProof {
+contract TestBulletProof {
+    using G1Point for G1Point.Data;
+    
     constructor() public {}
     function DebugKill() public { selfdestruct(msg.sender); }
     function Echo() public pure returns (bool) { return true; }
@@ -11,7 +13,7 @@ contract TestSingleBitBulletProof {
         return Vector.Inverse(values);
     }
     
-    function GetTestProof() internal pure returns (SingleBitBulletProof.Data memory proof) {
+    function GetTestProof() internal pure returns (BulletProof.Data memory proof) {
         proof.asset_addr = 0x0000000000000000000000000000000000000000;
         proof.V = new G1Point.Data[](8);
         proof.V[0].x = 0x0f31d9623b48f5128fd802ed695e434c4542439f54724e9664d0bf5a8e11a010;
@@ -59,13 +61,13 @@ contract TestSingleBitBulletProof {
         proof.t = 0x26b5975f5b03071ce7d20a8c9feeac4826976349bdaac4b3b2ec6d229152e436;
 	}
 	
-	function Test_PreCheck() public pure returns (uint8) {
-	    return SingleBitBulletProof.PreCheck(GetTestProof());
+	function Test_PreCheck() public pure returns (uint16) {
+	    return BulletProof.PreCheck(GetTestProof());
 	}
 	
 	function Test_FiatShamir() public pure returns (uint y, uint z, uint x, uint x_ip, uint yi, uint[] memory w, uint[] memory wi) {
-	    SingleBitBulletProof.Data memory proof = GetTestProof();
-	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
+	    BulletProof.Data memory proof = GetTestProof();
+	    BulletProof.FiatShamirChallenges memory c = BulletProof.GetFiatShamirChallenges(proof);
 	    y = c.y;
 	    z = c.z;
 	    x = c.x;
@@ -77,17 +79,19 @@ contract TestSingleBitBulletProof {
 	}
 	
 	function Test_Vectors() public pure returns (uint[] memory two, uint[] memory y, uint[] memory yi) {
-	    SingleBitBulletProof.Data memory proof = GetTestProof();
-	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
-	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
+	    BulletProof.Data memory proof = GetTestProof();
+	    BulletProof.FiatShamirChallenges memory c = BulletProof.GetFiatShamirChallenges(proof);
+	    
+	    uint N = (1 << proof.L.length) / proof.V.length;
+	    BulletProof.VectorPowers memory v = BulletProof.GetVectorPowers(c.y, c.yi, N, proof.V.length);
 	    two = Vector.Copy(v.two);
 	    y = Vector.Copy(v.y);
 	    yi = Vector.Copy(v.yi);
 	}
 	
 	function Test_GetAssetH() public view returns (uint x, uint y) {
-	    SingleBitBulletProof.Data memory proof = GetTestProof();
-	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	    BulletProof.Data memory proof = GetTestProof();
+	    G1Point.Data memory Hasset = BulletProof.GetAssetH(proof.asset_addr);
 	    x = Hasset.x;
 	    y = Hasset.y;
 	}
@@ -99,42 +103,57 @@ contract TestSingleBitBulletProof {
 	}
 	
 	function Test_Stage1Check() public view returns (bool) {
-	    SingleBitBulletProof.Data memory proof = GetTestProof();
-	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
-	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
-	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	    BulletProof.Data memory proof = GetTestProof();
+	    BulletProof.FiatShamirChallenges memory c = BulletProof.GetFiatShamirChallenges(proof);
 	    
-	    return SingleBitBulletProof.CalculateStage1Check(proof, c, v, Hasset);
+	    uint N = (1 << proof.L.length) / proof.V.length;
+	    BulletProof.VectorPowers memory v = BulletProof.GetVectorPowers(c.y, c.yi, N, proof.V.length);
+	    G1Point.Data memory Hasset = BulletProof.GetAssetH(proof.asset_addr);
+	    
+	    return BulletProof.CalculateStage1Check(proof, c, v, Hasset);
 	}
 	
-	function Test_Stage2Check() public view returns (uint x, uint y, uint[] memory gi_scalars, uint[] memory hi_scalars) {
-	    SingleBitBulletProof.Data memory proof = GetTestProof();
-	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
-	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
-	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	function Test_Stage2_Scalars() public pure returns (uint[] memory gi_scalars, uint[] memory hi_scalars) {
+	    BulletProof.Data memory proof = GetTestProof();
+	    BulletProof.FiatShamirChallenges memory c = BulletProof.GetFiatShamirChallenges(proof);
+	    
+	    uint N = (1 << proof.L.length) / proof.V.length;
+	    BulletProof.VectorPowers memory v = BulletProof.GetVectorPowers(c.y, c.yi, N, proof.V.length);
+	    
+	    (gi_scalars, hi_scalars) = BulletProof.CalculateStage2_MultiExpScalars(proof, c, v);
+	}
+	
+	function Test_Stage2_ExpectedPoint() public view returns (uint Px, uint Py) {
+		BulletProof.Data memory proof = GetTestProof();
+	    BulletProof.FiatShamirChallenges memory c = BulletProof.GetFiatShamirChallenges(proof);
+	    G1Point.Data memory Hasset = BulletProof.GetAssetH(proof.asset_addr);
 	    
 	    G1Point.Data memory P_expected;
-	    (P_expected, gi_scalars, hi_scalars) = SingleBitBulletProof.CalculateStage2Check(proof, c, v, Hasset);
-	    x = P_expected.x;
-	    y = P_expected.y;
+	    P_expected = BulletProof.CalculateStage2_ExpectedMultiExpResult(proof, c, Hasset);
+	    Px = P_expected.x;
+	    Py = P_expected.y;
 	}
 	
 	function Test_Stage2_wMultiExp() public view returns (bool) {
-	    SingleBitBulletProof.Data memory proof = GetTestProof();
-	    SingleBitBulletProof.FiatShamirChallenges memory c = SingleBitBulletProof.GetFiatShamirChallenges(proof);
-	    SingleBitBulletProof.VectorPowers memory v = SingleBitBulletProof.GetVectorPowers(c.y, c.yi, 1, proof.V.length);
-	    G1Point.Data memory Hasset = SingleBitBulletProof.GetAssetH(proof.asset_addr);
+	    BulletProof.Data memory proof = GetTestProof();
+	    BulletProof.FiatShamirChallenges memory c = BulletProof.GetFiatShamirChallenges(proof);
+	    
+	    uint N = (1 << proof.L.length) / proof.V.length;
+	    BulletProof.VectorPowers memory v = BulletProof.GetVectorPowers(c.y, c.yi, N, proof.V.length);
+	    
+	    G1Point.Data memory Hasset = BulletProof.GetAssetH(proof.asset_addr);
 	    
 	    G1Point.Data memory P_expected;
 	    uint[] memory gi_scalars;
 	    uint[] memory hi_scalars;
-	    (P_expected, gi_scalars, hi_scalars) = SingleBitBulletProof.CalculateStage2Check(proof, c, v, Hasset);
+	    (gi_scalars, hi_scalars) = BulletProof.CalculateStage2_MultiExpScalars(proof, c, v);
+	    P_expected = BulletProof.CalculateStage2_ExpectedMultiExpResult(proof, c, Hasset);
 	    
-	    return SingleBitBulletProof.CalculateMultiExp(P_expected, gi_scalars, hi_scalars);
+	    return P_expected.Equals(BulletProof.CalculateMultiExp(P_expected, gi_scalars, hi_scalars, 0, gi_scalars.length));
 	}
 
     //Gas Test Functions
-    function GasTest_PreCheck() public returns (uint8) {
+    function GasTest_PreCheck() public returns (uint16) {
 	    return Test_PreCheck();
 	}
 	
@@ -154,8 +173,12 @@ contract TestSingleBitBulletProof {
         return Test_Stage1Check();
     }
     
-    function GasTest_Stage2Check() public returns (uint x, uint y, uint[] memory gi_scalars, uint[] memory hi_scalars) {
-        return Test_Stage2Check();
+    function GasTest_Stage2_Scalars() public returns (uint[] memory gi_scalars, uint[] memory hi_scalars) {
+        return Test_Stage2_Scalars();
+    }
+    
+    function GasTest_Stage2_ExpectedPoint() public returns (uint Px, uint Py) {
+        return Test_Stage2_ExpectedPoint();
     }
     
     function GasTest_Stage2_wMultiExp() public returns (bool) {
