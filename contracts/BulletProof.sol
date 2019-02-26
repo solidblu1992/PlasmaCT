@@ -5,8 +5,7 @@ import "./G1Point.sol";
 import "./Scalar.sol";
 import "./Vector.sol";
 
-//Bullet Proof where there are multiple 1-bit commitments (N=1, M is variable)
-library SingleBitBulletProof {
+library BulletProof {
     using G1Point for G1Point.Data;
     using Scalar for uint;
     
@@ -110,29 +109,32 @@ library SingleBitBulletProof {
 	
 	///Bullet Proof Verification Functions
 	//Pre-check (i.e. check input proof for length, points on curve, etc.)
-	function PreCheck(Data memory proof) internal pure returns (uint8 failure_code) {
+	function PreCheck(Data memory proof) internal pure returns (uint16 failure_code) {
 		//Check inputs
-		uint temp = proof.L.length; //logN
+		uint temp = proof.L.length; //logMN
 		if (temp == 0) return 1;
 		if (proof.R.length != temp) return 2;
 		
-		uint M = (1 << temp);
-		if (M == 0) return 3;
-		if (M > 64) return 4;
+		uint MN = (1 << temp);
+		if (MN == 0) return 3;
+		if (MN > 64) return 4;
 		
-		//Check points - must be on curve and must have exactly M commitments (V[])
-		if (!proof.A.IsOnCurve()) return 5;
-		if (!proof.S.IsOnCurve()) return 6;
-		if (!proof.T1.IsOnCurve()) return 7;
-		if (!proof.T2.IsOnCurve()) return 8;
-		if (proof.V.length != M) return 9;
+		if (proof.V.length == 0) return 5;     //Must have at least one commitment
+		if (MN % proof.V.length != 0) return 6; //M = V.length, MN must be divisible by M
+		
+		//Check points - must be on curve
+		if (!proof.A.IsOnCurve()) return 7;
+		if (!proof.S.IsOnCurve()) return 8;
+		if (!proof.T1.IsOnCurve()) return 9;
+		if (!proof.T2.IsOnCurve()) return 10;
+		
 		for (uint i = 0; i < proof.V.length; i++) {
-		    if (!proof.V[i].IsOnCurve()) return uint8(10 + i);
+		    if (!proof.V[i].IsOnCurve()) return uint8(128 + i);
 		}
 		
 		for (uint i = 0; i < proof.L.length; i++) {
-		    if (!proof.L[i].IsOnCurve()) return uint8(2*i + 11);
-		    if (!proof.R[i].IsOnCurve()) return uint8(2*i + 12);
+		    if (!proof.L[i].IsOnCurve()) return uint8(256 + 2*i);
+		    if (!proof.R[i].IsOnCurve()) return uint8(256 + 2*i + 1);
 		}
 	    
 		//Success
@@ -194,7 +196,6 @@ library SingleBitBulletProof {
 	function CalculateStage1Check(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v, G1Point.Data memory Hasset)
 	    internal view returns (bool)
     {
-        
         uint yp_sum = Vector.Sum(v.y);
         
         //Find k first
@@ -232,27 +233,9 @@ library SingleBitBulletProof {
 	//Return Input scalars (z4, z5) and expected resulting G1Point (Pexp) for final exponentiation step
 	//Where multiexp([Gi, Hi], z4, z5) = Pexp
 	//Working toward verifying Z0 + z3*Hasset + Pexp = Z2 + z1*G
-	function CalculateStage2Check(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v, G1Point.Data memory Hasset)
-	    internal view returns (G1Point.Data memory Pexp, uint[] memory gi_scalars, uint[] memory hi_scalars)
+	function CalculateStage2_MultiExpScalars(Data memory proof, FiatShamirChallenges memory c, VectorPowers memory v)
+	    internal pure returns (uint[] memory gi_scalars, uint[] memory hi_scalars)
 	{
-	    //multiexp([Gi, Hi], z4, z5) = -Z0 + z1*G - Z2 - z3*Hasset
-        
-        ///Find Pexp
-	    //Subtact Z0 = A + x*S
-	    Pexp = proof.A.Add(proof.S.Multiply(c.x)).Negate();
-	    
-	    //Add z1*G = mu*G
-	    Pexp = Pexp.Add(G1Point.GetG1().Multiply(proof.mu));
-	    
-	    //Subtract Z2 = sum{wi^2*Li + wi^-2*Ri}
-	    for (uint i = 0; i < proof.L.length; i++) {
-	        Pexp = Pexp.Subtract(proof.L[i].Multiply(c.w[i].Square()));
-	        Pexp = Pexp.Subtract(proof.R[i].Multiply(c.wi[i].Square()));
-	    }
-	    
-	    //Subtract z3*Hasset = (t-a*b)*x_ip
-	    Pexp = Pexp.Subtract(Hasset.Multiply(proof.t.Subtract(proof.a.Multiply(proof.b)).Multiply(c.x_ip)));
-	    
         ///Calculate z4, z5
         uint zk = c.z;
         uint MN = (1 << proof.L.length);
@@ -280,48 +263,84 @@ library SingleBitBulletProof {
             ///gi scalar is simple
             gi_scalars[i] = gi_scalars[i].Add(c.z).Negate();
             
-            ///hi scalar calculation simplified for one bit commitments
+            ///hi scalar calculation
             uint temp;
             
-            //N = 1, M > 1
-            //h[i] = (z^[2+i])*(y^-i) + z - h_scalar
-            zk = zk.Multiply(c.z);
-            temp = zk;
+            //N == 1 simplification
+            if (v.two.length == 1) {
+                //Equation
+                //h[i] = (z^[2+i])*(y^-i) + z - h_scalar
+                
+                //Set zk to z^2
+                zk = zk.Multiply(c.z);
+                temp = zk;
+            }
+            //M == 1 simplification
+            else if (proof.V.length == 1) {
+                //Equation
+                //h[i] = (2^i)*(z^2)*(y^-i) + z - h_scalar
+                temp = v.two[i].Multiply(c.z.Square());
+            }
+            //N > 1 and M > 1
+            else {
+                //Equation
+                //h[i] = (z^[2+i/N])*(2^[i%N])*(y^-i) + z - h_scalar
+                temp = c.z.Power(2+i/v.two.length).Multiply(v.two[i%v.two.length]);
+            }
             
-            //For Reference:
-            //Simplified for single commitment (N > 1, M = 1)
-            //h[i] = (z^[2+i])*(y^-i) + z - h_scalar
-            //temp = v.two[i].Multiply(c.z.Square());
-            
-            //Full Calculation (N > 1, M > 1)
-            //h[i] = (z^[2+i/N])*(2^[i%N])*(y^-i) + z - h_scalar
-            //temp = c.z.Power(2+i/proof.N).Multiply(v.two[i%proof.N]);
-		    
-		    //Multiplication of yi, addition of z, and subtraction is common to all variants
+            //Multiplication of yi, addition of z, and subtraction is common to all variants
 		    hi_scalars[i] = temp.Multiply(v.yi[i]).Add(c.z).Subtract(hi_scalars[i]);
         }
 	}
 	
+	function CalculateStage2_ExpectedMultiExpResult(Data memory proof, FiatShamirChallenges memory c, G1Point.Data memory Hasset)
+	    internal view returns (G1Point.Data memory Pexp)
+	{
+	    //multiexp([Gi, Hi], z4, z5) = -Z0 + z1*G - Z2 - z3*Hasset
+        
+        ///Find Pexp
+	    //Subtact Z0 = A + x*S
+	    Pexp = proof.A.Add(proof.S.Multiply(c.x)).Negate();
+	    
+	    //Add z1*G = mu*G
+	    Pexp = Pexp.Add(G1Point.GetG1().Multiply(proof.mu));
+	    
+	    //Subtract Z2 = sum{wi^2*Li + wi^-2*Ri}
+	    for (uint i = 0; i < proof.L.length; i++) {
+	        Pexp = Pexp.Subtract(proof.L[i].Multiply(c.w[i].Square()));
+	        Pexp = Pexp.Subtract(proof.R[i].Multiply(c.wi[i].Square()));
+	    }
+	    
+	    //Subtract z3*Hasset = (t-a*b)*x_ip
+	    Pexp = Pexp.Subtract(Hasset.Multiply(proof.t.Subtract(proof.a.Multiply(proof.b)).Multiply(c.x_ip)));
+	}
+	
 	//Calculate Stage 3: MultiExp
-	//Check if multiexp([Gi, Hi], [z4, z5]) = Pexp
-	function CalculateMultiExp(G1Point.Data memory Pexp, uint[] memory gi_scalars, uint[] memory hi_scalars)
-	    internal view returns (bool)
+	//Check if multiexp([Gi, Hi], [gi_scalars, hi_scalars])
+	//Can be done in pieces
+	function CalculateMultiExp(G1Point.Data memory P_initial, uint[] memory gi_scalars, uint[] memory hi_scalars, uint start, uint count)
+	    internal view returns (G1Point.Data memory P_out)
 	{
 	    //Check inputs
-	    if (gi_scalars.length == 0) return false;
-	    if (gi_scalars.length != hi_scalars.length) return false;
-	    if (!Pexp.IsOnCurve()) return false;
+	    require(gi_scalars.length > 0);
+	    require(gi_scalars.length == hi_scalars.length);
+	    require(start < gi_scalars.length);
+	    require(count < gi_scalars.length);
+	    require((start+count) < gi_scalars.length);
+	    
+	    //Set initial point if given (to allow multiexp to be broken up into multiple steps)
+	    if (!P_initial.IsZero()) {
+	        require(P_initial.IsOnCurve());
+	        (P_out.x, P_out.y) = (P_initial.x, P_initial.y);
+	    }
 	    
 	    //Do multi exponentiation
-	    G1Point.Data memory right;
-	    for (uint i = 0; i < gi_scalars.length; i++) {
+	    for (uint i = start; i < (start+count); i++) {
 	        //Gi = HashToPoint("Gi", [0...N-1])
 	        //Hi = HashToPoint("Hi", [0...N-1])
 	        
-	        right = right.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Gi", i)))).Multiply(gi_scalars[i]));
-	        right = right.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Hi", i)))).Multiply(hi_scalars[i]));
+	        P_out = P_out.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Gi", i)))).Multiply(gi_scalars[i]));
+	        P_out = P_out.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Hi", i)))).Multiply(hi_scalars[i]));
 	    }
-	    
-	    return Pexp.Equals(right);
 	}
 }
