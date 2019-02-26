@@ -343,4 +343,120 @@ library BulletProof {
 	        P_out = P_out.Add(G1Point.FromX(uint(keccak256(abi.encodePacked("Hi", i)))).Multiply(hi_scalars[i]));
 	    }
 	}
+	
+	function Deserialize(bytes memory b) internal pure returns (BulletProof.Data memory proof) {
+	    //Buffers and offsets
+	    uint offset = 0x20;
+	    uint x;
+	    uint y;
+	    
+	    //Get M, allocate V[]
+	    assembly { x := mload(add(b, offset)) }
+	    proof.V = new G1Point.Data[](x);
+	    
+	    //Get logMN, allocate L[] and R[]
+	    assembly { x := mload(add(b, offset)) }
+	    proof.L = new G1Point.Data[](x);
+	    proof.R = new G1Point.Data[](x);
+	    offset += 0x20;
+	    
+	    //Get asset_addr
+	    assembly { x := mload(add(b, offset)) }
+	    proof.asset_addr = address(x);
+	    offset += 0x20;
+	    
+        //Get V
+        for (uint i = 0; i < proof.V.length; i++) {
+            assembly {
+                x := mload(add(b, offset))
+                y := mload(add(b, add(offset, 0x20)))
+            }
+            proof.V[i].x = x;
+            proof.V[i].y = y;
+            offset += 0x40;
+        }
+        
+        //Get A
+        assembly {
+            x := mload(add(b, offset))
+            y := mload(add(b, add(offset, 0x20)))
+        }
+        proof.A.x = x;
+        proof.A.y = y;
+        offset += 0x40;
+        
+        //Get S
+        assembly {
+            x := mload(add(b, offset))
+            y := mload(add(b, add(offset, 0x20)))
+        }
+        proof.S.x = x;
+        proof.S.y = y;
+        offset += 0x40;
+        
+        //Get T1
+        assembly {
+            x := mload(add(b, offset))
+            y := mload(add(b, add(offset, 0x20)))
+        }
+        proof.T1.x = x;
+        proof.T1.y = y;
+        offset += 0x40;
+        
+        //Get T2
+        assembly {
+            x := mload(add(b, offset))
+            y := mload(add(b, add(offset, 0x20)))
+        }
+        proof.T2.x = x;
+        proof.T2.y = y;
+        offset += 0x40;
+        
+        //Get L
+        for (uint i = 0; i < proof.L.length; i++) {
+            assembly {
+                x := mload(add(b, offset))
+                y := mload(add(b, add(offset, 0x20)))
+            }
+            proof.L[i].x = x;
+            proof.L[i].y = y;
+            offset += 0x40;
+        }
+        
+        //Get R
+        for (uint i = 0; i < proof.R.length; i++) {
+            assembly {
+                x := mload(add(b, offset))
+                y := mload(add(b, add(offset, 0x20)))
+            }
+            proof.R[i].x = x;
+            proof.R[i].y = y;
+            offset += 0x40;
+        }
+        
+        //Get taux
+        assembly { x := mload(add(b, offset)) }
+        proof.taux = x;
+        offset += 0x20;
+        
+        //Get mu
+        assembly { x := mload(add(b, offset)) }
+        proof.mu = x;
+        offset += 0x20;
+        
+        //Get a
+        assembly { x := mload(add(b, offset)) }
+        proof.a = x;
+        offset += 0x20;
+        
+        //Get b
+        assembly { x := mload(add(b, offset)) }
+        proof.b = x;
+        offset += 0x20;
+        
+        //Get t
+        assembly { x := mload(add(b, offset)) }
+        proof.t = x;
+        offset += 0x20;
+	}
 }
