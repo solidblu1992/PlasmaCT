@@ -326,7 +326,7 @@ library BulletProof {
 	    require(gi_scalars.length == hi_scalars.length);
 	    require(start < gi_scalars.length);
 	    require(count <= gi_scalars.length);
-	    require((start+count) < gi_scalars.length);
+	    require((start+count) <= gi_scalars.length);
 	    
 	    //Set initial point if given (to allow multiexp to be broken up into multiple steps)
 	    if (!P_initial.IsZero()) {
