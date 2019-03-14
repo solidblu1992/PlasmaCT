@@ -5,7 +5,7 @@ Gi = []
 Hi = []
 GiHiTree = None
 
-def GenBasePoints(N=64):
+def GenBasePoints(N=128):
     Gi = [None]*N
     Hi = [None]*N
 
@@ -203,7 +203,7 @@ def pvMul(A, a):
 (Gi, Hi) = GenBasePoints()
 GiHiTree = GenBasePointsMerkel(16)
 
-if (True):
+if (False):
     chunk_num = 3
     
     print("leaf_bytes:")
