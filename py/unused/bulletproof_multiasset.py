@@ -68,20 +68,28 @@ class BulletProof:
         assert(len(Hi) >= (M*N))
 
         #Get Hasset for the commitments
-        Hasset = []
+        Hasset = dict()
         for i in range(0, M):
-            if (asset_addr[i] == 0):
-                Hasset += [H]
+            key = asset_addr[i]
+
+            if key in Hasset.keys():
+                pass
             else:
-                Hasset += [hash_addr_to_point1(asset_addr[i])]
+                if (key == 0):
+                    new_Hasset = H
+                else:
+                    new_Hasset = hash_addr_to_point1(asset_addr[i])
+
+                Hasset[key] = new_Hasset
 
         #Create V[]
         V = [NullPoint]*M
-        for i in range(0, M):                
+        for i in range(0, M):
+            key = asset_addr[i]
             if (v[i] == 0):
                 V[i] = multiply(G, gamma[i])
             else:
-                V[i] = shamir([G, Hasset[i]], [gamma[i], v[i]])
+                V[i] = shamir([G, Hasset[key]], [gamma[i], v[i]])
 
         #Create A
         aL = [0]*(M*N)
@@ -141,23 +149,34 @@ class BulletProof:
 
         #Calculate t0, t1, and t2 => create T1, T2
         #Modified to allow for multiple Hasset generators
-        t0 = [0]*M
-        t1 = [0]*M
-        t2 = [0]*M
-        t = [0]*M
+        t0 = dict()
+        t1 = dict()
+        t2 = dict()
+        t = dict()
 
         for i in range(0, M):
             i_start = i*N
             i_end = i_start + N
-            t0[i] = vDot(l0[i_start:i_end], r0[i_start:i_end])
-            t1[i] = sAdd(vDot(l0[i_start:i_end], r1[i_start:i_end]), vDot(l1[i_start:i_end], r0[i_start:i_end]))
-            t2[i] = vDot(l1[i_start:i_end], r1[i_start:i_end])
+
+            key = asset_addr[i]
+            new_t0 = vDot(l0[i_start:i_end], r0[i_start:i_end])
+            new_t1 = sAdd(vDot(l0[i_start:i_end], r1[i_start:i_end]), vDot(l1[i_start:i_end], r0[i_start:i_end]))
+            new_t2 = vDot(l1[i_start:i_end], r1[i_start:i_end])
+            
+            if key in t0.keys():
+                t0[key] = sAdd(t0[key], new_t0)
+                t1[key] = sAdd(t0[key], new_t1)
+                t2[key] = sAdd(t0[key], new_t0)    
+            else:
+                t0[key] = new_t0
+                t1[key] = new_t1
+                t2[key] = new_t2
 
         tau1 = getRandom()
         tau2 = getRandom()
         
-        T1 = shamir_batch([G] + Hasset, [tau1] + t1)
-        T2 = shamir_batch([G] + Hasset, [tau2] + t2)
+        T1 = shamir_batch([G] + list(Hasset.values()), [tau1] + list(t1.values()))
+        T2 = shamir_batch([G] + list(Hasset.values()), [tau2] + list(t2.values()))
         
         #Continue Fiat-Shamir
         hasher = add_point_to_hasher(hasher, T1)
@@ -178,14 +197,22 @@ class BulletProof:
         for i in range(0, M):
             i_start = i*N
             i_end = i_start + N
-            t[i] = vDot(l[i_start:i_end], r[i_start:i_end])
+
+            key = asset_addr[i]
+            new_t = vDot(l[i_start:i_end], r[i_start:i_end])
+
+            if key in t.keys():
+                t[key] = sAdd(t[key], new_t)
+            else:
+                t[key] = new_t
 
         #Continue Fiat-Shamir
         hasher.update(int_to_bytes(taux, 32))
         hasher.update(int_to_bytes(mu, 32))
 
-        for i in range(0, M):
-            hasher.update(int_to_bytes(t[i], 32))
+        keys = list(t.keys())
+        for key in keys:
+            hasher.update(int_to_bytes(t[key], 32))
             
         x_ip = bytes_to_int(hasher.digest()) % Ncurve
         hasher = sha3.keccak_256(int_to_bytes(x_ip, 32))
@@ -267,7 +294,7 @@ class BulletProof:
             #Update value
             v[i] = v[i]*(10**power10[i]) + offset[i]
         
-        return BulletProof(total_commit, power10, offset, v, gamma, asset_addr, V, A, S, T1, T2, taux, mu, L, R, aprime[0], bprime[0], t, N)
+        return BulletProof(total_commit, power10, offset, v, gamma, list(Hasset.keys()), V, A, S, T1, T2, taux, mu, L, R, aprime[0], bprime[0], list(t.values()), N)
 
     #Verify batch of proofs
     def VerifyMulti(proofs):
@@ -481,36 +508,43 @@ class BulletProof:
     def Verify(self):
         return BulletProof.VerifyMulti([self])
 
-    def Print(self):
+    def Print(self, detailed_commitment=True):
         print()
         print("Bulletproof")
         print("# of commitments: " + str(len(self.total_commit)))
         print()
 
-        unit18 = []
-        unit1 = []
+        print("possible assets:")
         for i in range(0, len(self.asset_addr)):
             if (self.asset_addr[i] == 0):
-                unit18 += ["ETH"]
-                unit1 += ["wei"]
+                print("ETH")
             else:
-                unit18 += ["TOKEN"]
-                unit1 += ["wTOKEN (@ " + bytes_to_str(int_to_bytes(self.asset_addr[i], 20)) + ")"]
-        
-        for i in range(0, len(self.total_commit)):
-            print("Commitment " + str(i))
-            print("total_commit: " + bytes_to_str(int_to_bytes(CompressPoint(self.total_commit[i]), 32)))
-            print("power10: " + str(self.power10[i]))
-            print("offset: " + str(self.offset[i]))
+                print("TOKEN (@" + bytes_to_str(int_to_bytes(self.asset_addr[i], 20)) + ")")
 
-            pmin = (self.offset[i]) / 10**18
-            pone = (self.offset[i] + 10**self.power10[i]) / 10**18
-            pmax = (self.offset[i] + (2**self.N-1)*(10**self.power10[i])) / 10**18
-            print("possible range: " + str(pmin) + ", " + str(pone) + ", ..., " + str(pmax) + " " + unit18[i])
-            if (self.value != None):
-                print("[value: " + str(self.value[i] / 10**18) + " " + unit18[i] + " or " + str(self.value[i]) + " " + unit1[i] +"]")
-                print("[bf: " + hex(self.bf[i]) + "]")
-            print()
+        print()
+                
+        for i in range(0, len(self.total_commit)):
+            if (detailed_commitment):
+                print("Commitment " + str(i))
+                print("total_commit: " + bytes_to_str(int_to_bytes(CompressPoint(self.total_commit[i]), 32)))
+                print("power10: " + str(self.power10[i]))
+                print("offset: " + str(self.offset[i]))
+
+                pmin = self.offset[i]
+                pone = self.offset[i] + 10**self.power10[i]
+                pmax = self.offset[i] + (2**self.N-1)*(10**self.power10[i])
+                print("possible range (wei): " + str(pmin) + ", " + str(pone) + ", ..., " + str(pmax) + " wei")
+
+                pmin /= 10**18
+                pone /= 10**18
+                pmax /= 10**18            
+                
+                print("possible range (ETH): " + str(pmin) + ", " + str(pone) + ", ..., " + str(pmax) + " ETH")
+                
+                if (self.value != None):
+                    print("[value: " + str(self.value[i] / 10**18) + " ETH or " + str(self.value[i]) + " wei" +"]")
+                    print("[bf: " + hex(self.bf[i]) + "]")
+                print()
         
         print("Proof Parameters:")
 
@@ -672,11 +706,18 @@ if (False):
 
 #Multiple Bullet Proofs
 if (True):
-    p = 2   #Number of Proofs
-    m = 2   #Commitments per Proof
-    bits = 64
+    p = 1   #Number of Proofs
+    m = 32   #Commitments per Proof
+    bits = 1
     bp = [None]*p
-    asset_addr = getRandom(m, 160, 0)
+
+    asset_addr = [0]*m
+    addrs = [0] + getRandom(3, 160, 0)
+    
+    import random
+    for i in range(0, m):
+        r = random.randrange(0, len(addrs))
+        asset_addr[i] = addrs[r]
 
     print()
     print("Generating " + str(p) + " Bullet Proof(s) each with " + str(m) + " commitment(s) of " + str(bits) + " bits...")
@@ -686,7 +727,7 @@ if (True):
     t = time.time()
     for i in range(0, p):
         value = getRandom(m, bits, 0)
-        bp[i] = BulletProof.Generate(value, [17]*m, [0]*m, N=bits, asset_addr=asset_addr)
+        bp[i] = BulletProof.Generate(value, [0]*m, [0]*m, N=bits, asset_addr=asset_addr)
     t = time.time() - t
     BulletProof.PrintMultiMEW(bp)
     print("\n")
