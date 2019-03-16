@@ -179,6 +179,10 @@ class BulletProof:
         T2 = shamir_batch([G] + list(Hasset.values()), [tau2] + list(t2.values()))
         
         #Continue Fiat-Shamir
+        asset_addr_list = sorted(list(Hasset.keys()))
+        for addr in asset_addr_list:
+            hasher.update(int_to_bytes(addr, 20))
+            
         hasher = add_point_to_hasher(hasher, T1)
         hasher = add_point_to_hasher(hasher, T2)
         x = bytes_to_int(hasher.digest()) % Ncurve
@@ -210,9 +214,8 @@ class BulletProof:
         hasher.update(int_to_bytes(taux, 32))
         hasher.update(int_to_bytes(mu, 32))
 
-        keys = list(t.keys())
-        for key in keys:
-            hasher.update(int_to_bytes(t[key], 32))
+        for addr in asset_addr_list:
+            hasher.update(int_to_bytes(t[addr], 32))
             
         x_ip = bytes_to_int(hasher.digest()) % Ncurve
         hasher = sha3.keccak_256(int_to_bytes(x_ip, 32))
@@ -293,8 +296,9 @@ class BulletProof:
 
             #Update value
             v[i] = v[i]*(10**power10[i]) + offset[i]
-        
-        return BulletProof(total_commit, power10, offset, v, gamma, list(Hasset.keys()), V, A, S, T1, T2, taux, mu, L, R, aprime[0], bprime[0], list(t.values()), N)
+
+        Hasset_list, t_list = zip(*sorted(zip(list(Hasset.keys()), list(t.values()))))
+        return BulletProof(total_commit, power10, offset, v, gamma, Hasset_list, V, A, S, T1, T2, taux, mu, L, R, aprime[0], bprime[0], t_list, N)
 
     #Verify batch of proofs
     def VerifyMulti(proofs):
@@ -348,6 +352,9 @@ class BulletProof:
             z = bytes_to_int(hasher.digest()) % Ncurve
             
             hasher = sha3.keccak_256(int_to_bytes(z, 32))
+            asset_addr_list = sorted(proof.asset_addr)
+            for addr in asset_addr_list:
+                hasher.update(int_to_bytes(addr, 20))
             hasher = add_point_to_hasher(hasher, proof.T1)
             hasher = add_point_to_hasher(hasher, proof.T2)
             x = bytes_to_int(hasher.digest()) % Ncurve
@@ -356,8 +363,8 @@ class BulletProof:
             hasher.update(int_to_bytes(proof.taux, 32))
             hasher.update(int_to_bytes(proof.mu, 32))
             
-            for i in range(0, M):
-                hasher.update(int_to_bytes(proof.t[i], 32))
+            for t in proof.t:
+                hasher.update(int_to_bytes(t, 32))
                 
             x_ip = bytes_to_int(hasher.digest()) % Ncurve
             hasher = sha3.keccak_256(int_to_bytes(x_ip, 32))
