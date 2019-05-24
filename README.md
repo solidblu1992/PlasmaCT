@@ -14,7 +14,7 @@ There are currently two types of signatures proposed.  The first are Schnorr sig
 (-) Can't aggregate signatures, always have a growing number of tx "kernels".
 
 #### BLS.sign(msg, x) -> (P : G1Point, S : G2Point)
-(+) Better signature aggregation.  If the signatures all sign the same message then all signatures can be aggregated into one.  Special attention needs to be given to the fact that if sign(msg, -x) can be calculated from sign(msg, x) without knowing x.
+(+) Better signature aggregation.  If the signatures all sign the same message then all signatures can be aggregated into one.  Special attention needs to be given to the fact that if BLS.sign(msg, -x) can be calculated from sign(msg, x) without knowing x.
 
 (-) Slower per/tx verfification by an order of magnitude
 
@@ -30,14 +30,16 @@ bf must be unknown to the chain since whoever knows bf would be authorized to sp
 The block producer publishes the current block hash to the main chain.  The block format would look something like the following.  Note that all tx's included in the block are aggregated using the same techniques as MimbleWimble.
 
 
-Prameter | Type | Description
+Parameter | Type | Description
 --- | --- | ---
 blk_num | uint | Number of the block
 sig(0) | BLS | Aggregated signature for the total block tx, signing block number = 0.  Possibly used in future for aggregating historical blocks.
 sig(blk_num) | BLS | Aggregated signature for the total block tx, signing current block number
 sig_offset | uint | Total signature offset for the total block tx.  Used to obscure groupings of inputs and outputs.
-outputs | {uint, BulletProof}[] | All outputs included in the total block tx.  uint specifies current block number.  BulletProof contains output commitment
-inputs | {uint, G1Point}[] | All inputs included in the total block tx.  uint specifies the block number that created the input.
+inputs | {uint, G1Point}[N] | All inputs included in the total block tx.  uint specifies the block number that created the input.
+outputs | G1Point[M] | All outputs included in the total block tx.  Need to check that they are positive using range proofs.
+input_summations | G1Point[N-1] | Intermediate summations of each input G1Point.  Allows inputs to be summed with one on-chain Add()
+output_summations | G1Point[M-1] | Intermediate summations of each output G1Point.  Allows outputs to be summed with one on-chain Add()
 
 ## Off Chain
 ### Send(inputs : G1Point[], outputs : G1Point[], bp : bulletproof[], signature : bls/schnorr, signature_offset : uint)
@@ -45,3 +47,6 @@ inputs | {uint, G1Point}[] | All inputs included in the total block tx.  uint sp
 2. The block producer then calculates the difference between the sum of all outputs and the sum of all inputs.  This should add up to a point P = recover(signature) + signature_offset * G1.
 3. If using BLS signatures, the given signature must sign the new block number to prevent transaction reversal.  This means that only transactions included in the same block can be aggregated.  In the future, it may be possible to provide two signatures: BLS.sign(block number, x) and BLS.sign(0, x).  For a valid tx, both must have the same public key.  How the full block history aggregation would work in a Plasma context is not yet clear, however.  Need to think up a sufficient exit game which can withstand data availability.  
 4. If these are true, the outputs will be converted to new UTXOs and the inputs spent.  The transactions which created the inputs can now be combined with this new transaction (CoinJoin), either by storing the kernels together (Schnorr) or by aggregation (BLS) and adding the signature_offsets together.
+
+## Challenges
+### 
